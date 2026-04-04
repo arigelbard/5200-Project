@@ -512,4 +512,48 @@ map_path = VIZ_DIR / 'cdl_conversion_county_map.png'
 plt.savefig(map_path, dpi=150, bbox_inches='tight')
 print(f"  Map saved to {map_path}")
 plt.show()
+
+###################################################################
+# %% Export and simplify GeoJSON for Leaflet
+print("Exporting GeoJSON for Leaflet...")
+
+# Select only the columns Leaflet needs — keeps file size small
+geojson_cols = [
+    'FIPS', 'NAME', 'STATEFP',
+    'conversion_rate', 'converted_ha', 'retained_ha', 'total_natural',
+    'geometry'
+]
+
+counties_export = counties[geojson_cols].copy()
+
+# Round floats to 2 decimal places to keep file size down
+counties_export['conversion_rate'] = counties_export['conversion_rate'].round(2)
+counties_export['converted_ha']    = counties_export['converted_ha'].round(1)
+counties_export['retained_ha']     = counties_export['retained_ha'].round(1)
+
+# Leaflet expects WGS84 (EPSG:4326) coordinates, not Albers
+counties_export = counties_export.to_crs('EPSG:4326')
+
+# Replace NaN with None so it serializes to JSON null cleanly
+counties_export['conversion_rate'] = counties_export['conversion_rate'].where(
+    counties_export['conversion_rate'].notna(), other=None
+)
+
+# Simplify geometry — tolerance in degrees (we're in EPSG:4326)
+# 0.01 degrees ≈ 1km, which is plenty of detail for a county-level map
+print("  Simplifying geometries...")
+counties_export['geometry'] = counties_export['geometry'].simplify(
+    tolerance=0.01,
+    preserve_topology=True   # prevents counties from getting holes or splitting
+)
+
+output_path = VIZ_DIR / 'corn_belt_conversion.geojson'
+counties_export.to_file(output_path, driver='GeoJSON')
+
+import os
+size_kb = os.path.getsize(output_path) / 1024
+print(f"  Saved to {output_path}")
+print(f"  File size: {size_kb:,.0f} KB")
+print(f"  Features: {len(counties_export)}")
+###################################################################
 # %%
