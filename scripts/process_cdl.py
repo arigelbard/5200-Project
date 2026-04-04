@@ -18,12 +18,11 @@ Requirements:
     pip install rasterio numpy matplotlib geopandas rasterstats
 
 Outputs (written to ../outputs/):
-    cdl_conversion_map.png          — pixel-level map
-    cdl_conversion_county_map.png   — county-level choropleth
+    cdl_conversion_map.png          - pixel-level map
+    cdl_conversion_county_map.png   - county-level choropleth
 """
-
-# ── Imports ───────────────────────────────────────────────────────────────────
-
+###################################################################
+# %% Imports and configuration
 import rasterio
 import rasterio.merge
 import rasterio.warp
@@ -67,7 +66,7 @@ CORN_BELT_FIPS = [
     '17', '18', '19', '20', '27', '29', '31', '38', '39', '46', '55'
 ]
 
-# ── Helper: build file path from state + year ─────────────────────────────────
+# ── Build file path from state + year ─────────────────────────────────
 
 def get_tif_path(state, year):
     """
@@ -80,10 +79,8 @@ def get_tif_path(state, year):
     filename = f'cdl_{res}_r_{state_lower}_{year}_albers.tif'
     return BASE_DIR / state / filename
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# EXPLORATION
-# ═══════════════════════════════════════════════════════════════════════════════
-
+###################################################################
+# %% Exploration
 print("Exploring data...")
 
 rows = []
@@ -119,10 +116,10 @@ for state in STATES:
                 row[name] = code_counts.get(code, 0)
 
             rows.append(row)
-            print(f"  ✓ {state} {year} — shape {shape}, res {res_m}m")
+            print(f"  ✓ {state} {year} - shape {shape}, res {res_m}m")
 
         except Exception as e:
-            print(f"  ✗ {state} {year} — ERROR: {e}")
+            print(f"  ✗ {state} {year} - ERROR: {e}")
             missing_files.append(str(path))
 
 print("\n" + "="*60)
@@ -149,7 +146,7 @@ if rows:
         print("⚠ WARNING: Not all files share the same CRS!")
         print("  You will need to reproject before merging.")
     else:
-        print("✓ All files share the same CRS — safe to merge")
+        print("✓ All files share the same CRS - safe to merge")
 
     print("\n── Grassland + Wetland totals by state ──")
     df['natural_land'] = (df['Grassland/Pasture'] +
@@ -161,12 +158,10 @@ if rows:
     pivot['pct_loss']   = (pivot['pixel_loss'] / pivot['natural_2006'] * 100).round(2)
     pivot = pivot.sort_values('pixel_loss', ascending=False)
     print(pivot.to_string())
-    print("\nNote: pixel counts — multiply by (res_m²) to convert to area")
+    print("\nNote: pixel counts - multiply by (res_m²) to convert to area")
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# STEP 1 & 2: REPROJECT + RESAMPLE
-# ═══════════════════════════════════════════════════════════════════════════════
-
+###################################################################
+# %% Step 1 & 2: Reproject and resample
 def process_file(src_path, dst_path, target_crs, target_res):
     """
     Reproject a single raster to target_crs and resample to target_res.
@@ -215,16 +210,14 @@ for year in [2006, 2012]:
         dst_path = temp_dir / f'{state}_{year}_processed.tif'
 
         if dst_path.exists():
-            print(f"    {state} — already processed, skipping")
+            print(f"    {state} - already processed, skipping")
             continue
 
         process_file(src_path, dst_path, TARGET_CRS, TARGET_RES)
         print(f"    {state} ✓")
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# STEP 3: MOSAIC
-# ═══════════════════════════════════════════════════════════════════════════════
-
+###################################################################
+# %% Step 3: Mosaic
 def build_mosaic(year, out_path):
     """
     Merge all processed state rasters for a given year into one mosaic.
@@ -266,14 +259,12 @@ if not mosaic_2012_path.exists():
 else:
     print("  mosaic_2012.tif already exists, skipping")
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# STEP 4: COMPUTE CONVERSION LAYER
-# ═══════════════════════════════════════════════════════════════════════════════
-
+###################################################################
+# %% Step 4: Compute conversion layer
 print("\nStep 4: Computing conversion layer...")
 
 """
-Conversion logic — for each pixel:
+Conversion logic - for each pixel:
   - Was it grassland or wetland in 2006?  (natural land)
   - Is it corn in 2012?                   (converted)
 
@@ -292,12 +283,12 @@ natural_codes = [code for code, name in CODES_OF_INTEREST.items() if name != 'Co
 with rasterio.open(mosaic_2006_path) as src_2006, \
      rasterio.open(mosaic_2012_path) as src_2012:
 
-    # Warn if dimensions don't match — will be handled per-chunk below
+    # Warn if dimensions don't match - will be handled per-chunk below
     if src_2006.width != src_2012.width or src_2006.height != src_2012.height:
         print(f"  Note: mosaic dimensions differ "
               f"(2006: {src_2006.width}x{src_2006.height}, "
               f"2012: {src_2012.width}x{src_2012.height}) "
-              f"— resampling 2012 to match 2006")
+              f"- resampling 2012 to match 2006")
 
     meta = src_2006.meta.copy()
     meta.update({'compress': 'lzw', 'dtype': 'uint8'})
@@ -360,10 +351,8 @@ print(f"\n  Natural land converted to corn: {converted_ha:,.0f} hectares")
 print(f"  Natural land retained:          {retained_ha:,.0f} hectares")
 print(f"  Conversion rate:                {converted_ha/(converted_ha+retained_ha)*100:.1f}%")
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# STEP 5: PIXEL-LEVEL MAP
-# ═══════════════════════════════════════════════════════════════════════════════
-
+###################################################################
+# %% Step 5: Pixel-level map
 print("\nStep 5: Generating pixel-level map...")
 
 PLOT_DOWNSAMPLE = 5
@@ -426,10 +415,8 @@ plt.savefig(map_path, dpi=150, bbox_inches='tight')
 print(f"  Map saved to {map_path}")
 plt.show()
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# STEP 6: COUNTY-LEVEL CHOROPLETH
-# ═══════════════════════════════════════════════════════════════════════════════
-
+###################################################################
+# %% Step 6: County choropleth
 print("\nStep 6: Generating county-level choropleth...")
 
 # Load and prepare county shapefile
@@ -440,7 +427,7 @@ counties = counties.to_crs(TARGET_CRS)
 counties['FIPS'] = counties['STATEFP'] + counties['COUNTYFP']
 print(f"  Counties loaded: {len(counties)}")
 
-# Zonal statistics — count converted (1) and retained (2) pixels per county
+# Zonal statistics - count converted (1) and retained (2) pixels per county
 print("  Running zonal statistics (this may take a few minutes)...")
 stats = zonal_stats(
     counties,
@@ -502,7 +489,7 @@ cbar = fig.colorbar(sm, ax=ax, orientation='horizontal',
                     fraction=0.03, pad=0.02, aspect=40)
 cbar.set_label('% of Natural Land (Grassland/Wetland) Converted to Corn', fontsize=10)
 cbar.set_ticks([0, 5, 10, 15, 20, 25, 30])
-cbar.set_ticklabels(['0%', '5%', '10%', '15%', '20%', '25%', '≥30%'])
+cbar.set_ticklabels(['0%', '5%', '10%', '15%', '20%', '25%', '30%'])
 
 no_data_patch = mpatches.Patch(color='#eeeeee', label='No significant natural land')
 ax.legend(handles=[no_data_patch], loc='lower left', fontsize=9, framealpha=0.9)
@@ -525,3 +512,4 @@ map_path = VIZ_DIR / 'cdl_conversion_county_map.png'
 plt.savefig(map_path, dpi=150, bbox_inches='tight')
 print(f"  Map saved to {map_path}")
 plt.show()
+# %%
