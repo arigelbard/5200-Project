@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Corn Belt Land Conversion Map</title>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0f1117;
+      --surface:  #1a1d27;
+      --border:   #2a2d3a;
+      --text:     #e8e6e0;
+      --muted:    #8a8890;
+      --accent:   #c8a96e;
+      --no-data:  #2a2d3a;
+    }
+
+    body {
+      font-family: 'Georgia', serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ──────────────────────────────────────────────────────── */
+    header {
+      padding: 18px 28px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+
+    header h1 {
+      font-size: 1.25rem;
+      font-weight: normal;
+      letter-spacing: 0.02em;
+      color: var(--text);
+    }
+
+    header p {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 3px;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 0.04em;
+    }
+
+    /* ── Map ─────────────────────────────────────────────────────────── */
+    #map {
+      flex: 1;
+      width: 100%;
+      position: relative;
+    }
+
+    .leaflet-container {
+      background: var(--bg) !important;
+    }
+
+    /* ── Tooltip ─────────────────────────────────────────────────────── */
+    .leaflet-tooltip-custom {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 10px 14px;
+      color: var(--text);
+      font-family: 'Georgia', serif;
+      font-size: 0.82rem;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      pointer-events: none;
+      min-width: 180px;
+    }
+
+    .tooltip-county {
+      font-size: 0.95rem;
+      font-weight: bold;
+      margin-bottom: 6px;
+      color: var(--accent);
+      letter-spacing: 0.03em;
+    }
+
+    .tooltip-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 3px;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .tooltip-row span:last-child {
+      color: var(--text);
+      font-family: 'Courier New', monospace;
+    }
+
+    .tooltip-no-data {
+      color: var(--muted);
+      font-style: italic;
+      font-size: 0.82rem;
+    }
+
+    /* ── Legend ──────────────────────────────────────────────────────── */
+    .legend {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 14px 16px;
+      font-family: 'Georgia', serif;
+      color: var(--text);
+      min-width: 200px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    }
+
+    .legend-title {
+      font-size: 0.75rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .legend-scale {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .legend-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .legend-swatch {
+      width: 24px;
+      height: 14px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    .legend-no-data {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Stats widget ────────────────────────────────────────────────── */
+    .stats-bar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 10px 14px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.72rem;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      min-width: 260px;
+    }
+
+    .stats-bar .stat-value {
+      color: var(--accent);
+      font-size: 1rem;
+      display: block;
+      margin-top: 2px;
+    }
+
+    .slider-note {
+      font-size: 0.65rem;
+      color: var(--muted);
+      margin-top: 4px;
+      font-style: italic;
+      display: block;
+    }
+
+    /* ── Year slider control ─────────────────────────────────────────── */
+    .slider-control {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 14px 18px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      min-width: 300px;
+      font-family: 'Courier New', monospace;
+    }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 10px;
+    }
+
+    .slider-label {
+      font-size: 0.72rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .slider-year {
+      font-size: 1.4rem;
+      color: var(--accent);
+      font-weight: bold;
+      letter-spacing: 0.04em;
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      outline: none;
+      margin-top: 4px;
+      cursor: pointer;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: 2px solid var(--surface);
+      box-shadow: 0 0 4px rgba(200,169,110,0.5);
+    }
+
+    input[type=range]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: 2px solid var(--surface);
+    }
+
+    .slider-ticks {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+    }
+
+    .slider-tick {
+      font-size: 0.65rem;
+      color: var(--muted);
+      cursor: pointer;
+      transition: color 0.15s;
+      user-select: none;
+    }
+
+    .slider-tick:hover,
+    .slider-tick.active {
+      color: var(--accent);
+    }
+
+    /* ── Loading overlay ─────────────────────────────────────────────── */
+    #loading-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15,17,23,0.75);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      color: var(--accent);
+      letter-spacing: 0.06em;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+
+    #loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <h1>Grassland &amp; Wetland Converted to Corn by County</h1>
+    <p>USDA Cropland Data Layer &nbsp;·&nbsp; Corn Belt states &nbsp;·&nbsp; Conversion measured from 2006 baseline &nbsp;·&nbsp; Hover over a county for details</p>
+  </header>
+
+  <div id="map">
+    <div id="loading-overlay">Loading map data…</div>
+  </div>
+
+  <script>
+    // ── Configuration ────────────────────────────────────────────────────────
+    const YEARS = [2006, 2007, 2008, 2009, 2010, 2011, 2012];
+
+    // Update this if your GeoJSON files live in a subfolder e.g. 'data/corn_belt_2006.geojson'
+    const geojsonPath = year => `corn_belt_${year}.geojson`;
+
+    const BREAKS = [0, 5, 10, 15, 20, 25, 30];
+    const COLORS = [
+      '#fff7ec',  // 0–5%
+      '#fee8c8',  // 5–10%
+      '#fdd49e',  // 10–15%
+      '#fdbb84',  // 15–20%
+      '#fc8d59',  // 20–25%
+      '#ef6548',  // 25–30%
+      '#990000',  // ≥30%
+    ];
+    const NO_DATA_COLOR = '#2a2d3a';
+
+    // ── Color helpers ─────────────────────────────────────────────────────────
+    function getColor(rate) {
+      if (rate === null || rate === undefined) return NO_DATA_COLOR;
+      for (let i = BREAKS.length - 1; i >= 0; i--) {
+        if (rate >= BREAKS[i]) return COLORS[i];
+      }
+      return COLORS[0];
+    }
+
+    function styleFeature(feature) {
+      const rate = feature.properties.conversion_rate;
+      return {
+        fillColor:   getColor(rate),
+        fillOpacity: rate === null ? 0.4 : 0.85,
+        color:       '#1a1d27',
+        weight:      0.5,
+        opacity:     1,
+      };
+    }
+
+    // ── Map init ──────────────────────────────────────────────────────────────
+    const map = L.map('map', {
+      center:   [42.5, -96],
+      zoom:     5,
+      zoomSnap: 0.5,
+      minZoom:  4,
+      maxZoom:  9,
+    });
+
+    // ── State ─────────────────────────────────────────────────────────────────
+    let geojsonLayer = null;
+    let cachedData   = {};
+    let currentYear  = 2012;
+    let mapBoundsSet = false;
+
+    // ── Tooltip ───────────────────────────────────────────────────────────────
+    function buildTooltipHTML(props) {
+      if (props.conversion_rate === null || props.conversion_rate === undefined) {
+        return `
+          <div class="tooltip-county">${props.NAME} County</div>
+          <div class="tooltip-no-data">No significant natural land</div>
+        `;
+      }
+      const rate      = props.conversion_rate.toFixed(1);
+      const converted = props.converted_ha
+        ? props.converted_ha.toLocaleString(undefined, { maximumFractionDigits: 0 })
+        : '—';
+      const retained  = props.retained_ha
+        ? props.retained_ha.toLocaleString(undefined, { maximumFractionDigits: 0 })
+        : '—';
+      return `
+        <div class="tooltip-county">${props.NAME} County</div>
+        <div class="tooltip-row"><span>Conversion rate</span><span>${rate}%</span></div>
+        <div class="tooltip-row"><span>Converted (vs 2006)</span><span>${converted} ha</span></div>
+        <div class="tooltip-row"><span>Natural retained</span><span>${retained} ha</span></div>
+      `;
+    }
+
+    function onEachFeature(feature, layer) {
+      layer.bindTooltip(
+        L.tooltip({
+          sticky:    true,
+          className: 'leaflet-tooltip-custom',
+          opacity:   1,
+        }).setContent(buildTooltipHTML(feature.properties))
+      );
+
+      layer.on({
+        mouseover(e) {
+          e.target.setStyle({ weight: 1.5, color: '#c8a96e' });
+          e.target.bringToFront();
+        },
+        mouseout(e) {
+          if (geojsonLayer) geojsonLayer.resetStyle(e.target);
+        },
+      });
+    }
+
+    // ── Stats widget ──────────────────────────────────────────────────────────
+    function updateStats(data, year) {
+      let totalConverted = 0;
+      let totalRetained  = 0;
+
+      data.features.forEach(f => {
+        if (f.properties.converted_ha) totalConverted += f.properties.converted_ha;
+        if (f.properties.retained_ha)  totalRetained  += f.properties.retained_ha;
+      });
+
+      const pct        = (totalConverted / (totalConverted + totalRetained) * 100).toFixed(1);
+      const convertedM = (totalConverted / 1e6).toFixed(2);
+      const note       = year === 2006
+        ? '<span class="slider-note">Baseline year — no conversion yet recorded</span>'
+        : '';
+
+      statsControl.getContainer().innerHTML = `
+        <div class="stats-bar">
+          Converted since 2006 baseline
+          <span class="stat-value">${convertedM}M hectares &nbsp;·&nbsp; ${pct}%</span>
+          ${note}
+        </div>
+      `;
+    }
+
+    // ── Render a year's data ──────────────────────────────────────────────────
+    function renderYear(year, data) {
+      if (geojsonLayer) {
+        map.removeLayer(geojsonLayer);
+        geojsonLayer = null;
+      }
+
+      geojsonLayer = L.geoJSON(data, {
+        style:         styleFeature,
+        onEachFeature: onEachFeature,
+      }).addTo(map);
+
+      if (!mapBoundsSet) {
+        map.fitBounds(geojsonLayer.getBounds(), { padding: [20, 20] });
+        mapBoundsSet = true;
+      }
+
+      updateStats(data, year);
+      updateSliderUI(year);
+    }
+
+    // ── Load a year (uses cache if available) ─────────────────────────────────
+    function loadYear(year) {
+      const overlay = document.getElementById('loading-overlay');
+      overlay.classList.remove('hidden');
+      overlay.textContent = `Loading ${year} data…`;
+
+      if (cachedData[year]) {
+        renderYear(year, cachedData[year]);
+        overlay.classList.add('hidden');
+        return;
+      }
+
+      fetch(geojsonPath(year))
+        .then(r => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        })
+        .then(data => {
+          cachedData[year] = data;
+          renderYear(year, data);
+          overlay.classList.add('hidden');
+        })
+        .catch(err => {
+          console.error(`Failed to load ${year}:`, err);
+          overlay.textContent = `⚠ Could not load corn_belt_${year}.geojson`;
+          setTimeout(() => overlay.classList.add('hidden'), 3000);
+        });
+    }
+
+    // ── Sync slider UI to current year ────────────────────────────────────────
+    function updateSliderUI(year) {
+      const display = document.getElementById('slider-year-display');
+      const slider  = document.getElementById('year-slider');
+      if (display) display.textContent = year;
+      if (slider)  slider.value = year;
+      document.querySelectorAll('.slider-tick').forEach(el => {
+        el.classList.toggle('active', parseInt(el.dataset.year) === year);
+      });
+    }
+
+    // ── setYear — called by slider input and tick clicks ──────────────────────
+    window.setYear = function(year) {
+      year = parseInt(year);
+      if (year === currentYear) return;
+      currentYear = year;
+      loadYear(year);
+    };
+
+    // ── Legend ────────────────────────────────────────────────────────────────
+    const legendControl = L.control({ position: 'bottomright' });
+    legendControl.onAdd = function() {
+      const div  = L.DomUtil.create('div', 'legend');
+      const rows = BREAKS.map((brk, i) => {
+        const label = i < BREAKS.length - 1
+          ? `${BREAKS[i]}–${BREAKS[i+1]}%`
+          : `≥${BREAKS[i]}%`;
+        return `
+          <div class="legend-bar">
+            <div class="legend-swatch" style="background:${COLORS[i]}"></div>
+            <span>${label}</span>
+          </div>`;
+      }).join('');
+
+      div.innerHTML = `
+        <div class="legend-title">% Natural Land Converted</div>
+        <div class="legend-scale">${rows}</div>
+        <div class="legend-no-data">
+          <div class="legend-swatch" style="background:${NO_DATA_COLOR};opacity:0.4;border:1px solid #444"></div>
+          <span>No significant natural land</span>
+        </div>
+      `;
+      return div;
+    };
+    legendControl.addTo(map);
+
+    // ── Stats control ─────────────────────────────────────────────────────────
+    const statsControl = L.control({ position: 'topleft' });
+    statsControl.onAdd = function() {
+      const div = L.DomUtil.create('div', 'stats-bar');
+      div.innerHTML = 'Loading…';
+      return div;
+    };
+    statsControl.addTo(map);
+
+    // ── Slider control ────────────────────────────────────────────────────────
+    const sliderControl = L.control({ position: 'bottomleft' });
+    sliderControl.onAdd = function() {
+      const div = L.DomUtil.create('div', 'slider-control');
+
+      const ticks = YEARS.map(y => `
+        <span class="slider-tick ${y === currentYear ? 'active' : ''}"
+              data-year="${y}"
+              onclick="setYear(${y})">${y}</span>
+      `).join('');
+
+      div.innerHTML = `
+        <div class="slider-header">
+          <span class="slider-label">Year</span>
+          <span class="slider-year" id="slider-year-display">${currentYear}</span>
+        </div>
+        <input
+          type="range"
+          id="year-slider"
+          min="${YEARS[0]}"
+          max="${YEARS[YEARS.length - 1]}"
+          step="1"
+          value="${currentYear}"
+        />
+        <div class="slider-ticks">${ticks}</div>
+      `;
+
+      // Prevent map interactions bleeding through the slider
+      L.DomEvent.disableClickPropagation(div);
+      L.DomEvent.disableScrollPropagation(div);
+
+      // Attach slider listener after the element is in the DOM
+      setTimeout(() => {
+        const slider = document.getElementById('year-slider');
+        if (slider) {
+          slider.addEventListener('input', e => setYear(parseInt(e.target.value)));
+        }
+      }, 0);
+
+      return div;
+    };
+    sliderControl.addTo(map);
+
+    // ── Preload remaining years silently in the background ────────────────────
+    function preloadAll() {
+      setTimeout(() => {
+        YEARS.forEach(y => {
+          if (!cachedData[y]) {
+            fetch(geojsonPath(y))
+              .then(r => r.json())
+              .then(data => { cachedData[y] = data; })
+              .catch(() => {});
+          }
+        });
+      }, 1500);
+    }
+
+    // ── Boot ──────────────────────────────────────────────────────────────────
+    loadYear(currentYear);
+    preloadAll();
+
+  </script>
+</body>
+</html>
