@@ -142,3 +142,27 @@ plt.tight_layout()
 plt.savefig('../outputs/corn_acreage_change_map.png', dpi=150, bbox_inches='tight')
 print("\nMap saved to corn_acreage_change_map.png")
 plt.show()
+
+# Save GeoJSON for interactive version
+# Export GeoJSON for Leaflet
+geojson_cols = ['FIPS', 'NAME', 'STATEFP', 'change_acres', 'pct_change',
+                'acres_2006', 'acres_2012', 'geometry']
+
+corn_export = merged[merged['change_acres'].notna()][geojson_cols].copy()
+corn_export['change_acres'] = corn_export['change_acres'].round(0)
+corn_export['pct_change']   = corn_export['pct_change'].round(1)
+
+# Reproject to WGS84 for Leaflet
+corn_export = corn_export.to_crs('EPSG:4326')
+
+# Simplify geometries
+corn_export['geometry'] = corn_export['geometry'].simplify(
+    tolerance=0.01, preserve_topology=True
+)
+
+output_path = '../outputs/corn_acreage_change.geojson'
+corn_export.to_file(output_path, driver='GeoJSON')
+
+import os
+size_kb = os.path.getsize(output_path) / 1024
+print(f"Saved corn_acreage_change.geojson ({size_kb:,.0f} KB)")
