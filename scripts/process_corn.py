@@ -148,7 +148,7 @@ plt.show()
 geojson_cols = ['FIPS', 'NAME', 'STATEFP', 'change_acres', 'pct_change',
                 'acres_2006', 'acres_2012', 'geometry']
 
-corn_export = merged[merged['change_acres'].notna()][geojson_cols].copy()
+corn_export = merged[geojson_cols].copy()
 corn_export['change_acres'] = corn_export['change_acres'].round(0)
 corn_export['pct_change']   = corn_export['pct_change'].round(1)
 

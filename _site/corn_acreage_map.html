@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Corn Acreage Change Map</title>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0f1117;
+      --surface:  #1a1d27;
+      --border:   #2a2d3a;
+      --text:     #e8e6e0;
+      --muted:    #8a8890;
+      --accent:   #c8a96e;
+      --no-data:  #555555;
+    }
+
+    body {
+      font-family: 'Georgia', serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 18px 28px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+
+    header h1 {
+      font-size: 1.25rem;
+      font-weight: normal;
+      letter-spacing: 0.02em;
+      color: var(--text);
+    }
+
+    header p {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 3px;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 0.04em;
+    }
+
+    #map {
+      flex: 1;
+      width: 100%;
+      position: relative;
+    }
+
+    .leaflet-container {
+      background: var(--bg) !important;
+    }
+
+    /* ── Tooltip ─────────────────────────────────────────────────────── */
+    .leaflet-tooltip-custom {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 10px 14px;
+      color: var(--text);
+      font-family: 'Georgia', serif;
+      font-size: 0.82rem;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      pointer-events: none;
+      min-width: 180px;
+    }
+
+    .tooltip-county {
+      font-size: 0.95rem;
+      font-weight: bold;
+      margin-bottom: 6px;
+      color: var(--accent);
+      letter-spacing: 0.03em;
+    }
+
+    .tooltip-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 3px;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .tooltip-row span:last-child {
+      color: var(--text);
+      font-family: 'Courier New', monospace;
+    }
+
+    .tooltip-positive { color: #4caf96; }
+    .tooltip-negative { color: #c0392b; }
+
+    /* ── Legend ──────────────────────────────────────────────────────── */
+    .legend {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 14px 16px;
+      font-family: 'Georgia', serif;
+      color: var(--text);
+      min-width: 210px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    }
+
+    .legend-title {
+      font-size: 0.75rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .legend-scale {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .legend-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .legend-swatch {
+      width: 24px;
+      height: 14px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    .legend-no-data {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Stats widget ────────────────────────────────────────────────── */
+    .stats-bar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 10px 14px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.72rem;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      min-width: 280px;
+    }
+
+    .stats-bar .stat-value {
+      color: var(--accent);
+      font-size: 1rem;
+      display: block;
+      margin-top: 2px;
+    }
+
+    /* ── Loading overlay ─────────────────────────────────────────────── */
+    #loading-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15,17,23,0.75);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      color: var(--accent);
+      letter-spacing: 0.06em;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+
+    #loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <h1>Change in Corn Acreage Planted by County, 2006–2012</h1>
+    <p>USDA NASS &nbsp;·&nbsp; Continental US &nbsp;·&nbsp; Green = increase &nbsp;·&nbsp; Brown = decrease &nbsp;·&nbsp; Hover over a county for details</p>
+  </header>
+
+  <div id="map">
+    <div id="loading-overlay">Loading map data…</div>
+  </div>
+
+  <script>
+    // ── Color scale ───────────────────────────────────────────────────────────
+    // Diverging BrBG scale centered at 0, capped at ±100k acres
+    // Matches the matplotlib BrBG colormap used in the static version
+
+    const BREAKS   = [-100000, -50000, -25000, 0, 25000, 50000, 100000];
+    const COLORS   = [
+      '#543005',   // ≤ -100k  (dark brown)
+      '#8c510a',   // -100k to -50k
+      '#bf812d',   // -50k to -25k
+      '#f6e8c3',   // -25k to 0  (near white)
+      '#c7eae5',   // 0 to 25k   (near white)
+      '#35978f',   // 25k to 50k
+      '#01665e',   // ≥ 100k  (dark teal/green)
+    ];
+    const NO_DATA_COLOR = '#555555';
+
+    function getColor(change) {
+      if (change === null || change === undefined) return NO_DATA_COLOR;
+      for (let i = BREAKS.length - 1; i >= 0; i--) {
+        if (change >= BREAKS[i]) return COLORS[i];
+      }
+      return COLORS[0];
+    }
+
+    function styleFeature(feature) {
+      const change = feature.properties.change_acres;
+      return {
+        fillColor:   getColor(change),
+        fillOpacity: 0.85,
+        color:       '#1a1d27',
+        weight:      0.5,
+        opacity:     1,
+      };
+    }
+
+    // ── Map init ──────────────────────────────────────────────────────────────
+    const map = L.map('map', {
+      center:   [38.5, -96],
+      zoom:     4,
+      zoomSnap: 0.5,
+      minZoom:  3,
+      maxZoom:  9,
+    });
+
+    // ── State ─────────────────────────────────────────────────────────────────
+    let geojsonLayer = null;
+
+    // ── Tooltip ───────────────────────────────────────────────────────────────
+    function formatAcres(val) {
+      if (val === null || val === undefined) return '—';
+      const abs   = Math.abs(val);
+      const sign  = val >= 0 ? '+' : '−';
+      const fmt   = abs >= 1000
+        ? `${sign}${(abs / 1000).toFixed(1)}k`
+        : `${sign}${abs.toFixed(0)}`;
+      return fmt;
+    }
+
+    function buildTooltipHTML(props) {
+      const change  = props.change_acres;
+      const pct     = props.pct_change;
+      const a2006   = props.acres_2006
+        ? props.acres_2006.toLocaleString(undefined, { maximumFractionDigits: 0 })
+        : '—';
+      const a2012   = props.acres_2012
+        ? props.acres_2012.toLocaleString(undefined, { maximumFractionDigits: 0 })
+        : '—';
+
+      const changeClass = change >= 0 ? 'tooltip-positive' : 'tooltip-negative';
+      const changeStr   = formatAcres(change);
+      const pctStr      = pct !== null
+        ? `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`
+        : '—';
+
+      return `
+        <div class="tooltip-county">${props.NAME} County</div>
+        <div class="tooltip-row">
+          <span>Change in acres</span>
+          <span class="${changeClass}">${changeStr} acres</span>
+        </div>
+        <div class="tooltip-row">
+          <span>% change</span>
+          <span class="${changeClass}">${pctStr}</span>
+        </div>
+        <div class="tooltip-row"><span>2006 acreage</span><span>${a2006} ac</span></div>
+        <div class="tooltip-row"><span>2012 acreage</span><span>${a2012} ac</span></div>
+      `;
+    }
+
+    function onEachFeature(feature, layer) {
+      layer.bindTooltip(
+        L.tooltip({
+          sticky:    true,
+          className: 'leaflet-tooltip-custom',
+          opacity:   1,
+        }).setContent(buildTooltipHTML(feature.properties))
+      );
+
+      layer.on({
+        mouseover(e) {
+          e.target.setStyle({ weight: 1.5, color: '#c8a96e' });
+          e.target.bringToFront();
+        },
+        mouseout(e) {
+          if (geojsonLayer) geojsonLayer.resetStyle(e.target);
+        },
+      });
+    }
+
+    // ── Stats widget ──────────────────────────────────────────────────────────
+    function updateStats(data) {
+      let totalIncrease  = 0;
+      let totalDecrease  = 0;
+      let countiesUp     = 0;
+      let countiesDown   = 0;
+
+      data.features.forEach(f => {
+        const c = f.properties.change_acres;
+        if (c === null) return;
+        if (c >= 0) { totalIncrease += c; countiesUp++; }
+        else        { totalDecrease += c; countiesDown++; }
+      });
+
+      const netM = ((totalIncrease + totalDecrease) / 1e6).toFixed(2);
+
+      statsControl.getContainer().innerHTML = `
+        <div class="stats-bar">
+          Net change in corn acreage, 2006–2012
+          <span class="stat-value">
+            +${(totalIncrease / 1e6).toFixed(1)}M acres planted
+            &nbsp;·&nbsp; ${countiesUp} counties increased
+          </span>
+        </div>
+      `;
+    }
+
+    // ── Load GeoJSON ──────────────────────────────────────────────────────────
+    const overlay = document.getElementById('loading-overlay');
+
+    fetch('corn_acreage_change.geojson')
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then(data => {
+        geojsonLayer = L.geoJSON(data, {
+          style:         styleFeature,
+          onEachFeature: onEachFeature,
+        }).addTo(map);
+
+        map.fitBounds(geojsonLayer.getBounds(), { padding: [20, 20] });
+        updateStats(data);
+        overlay.classList.add('hidden');
+      })
+      .catch(err => {
+        console.error(err);
+        overlay.textContent = '⚠ Could not load corn_acreage_change.geojson';
+        setTimeout(() => overlay.classList.add('hidden'), 3000);
+      });
+
+    // ── Legend ────────────────────────────────────────────────────────────────
+    const legendControl = L.control({ position: 'bottomright' });
+    legendControl.onAdd = function() {
+      const div = L.DomUtil.create('div', 'legend');
+
+      const items = [
+        { color: COLORS[6], label: '≥ +100k acres' },
+        { color: COLORS[5], label: '+50k to +100k' },
+        { color: COLORS[4], label: '0 to +50k' },
+        { color: COLORS[3], label: '−25k to 0' },
+        { color: COLORS[2], label: '−50k to −25k' },
+        { color: COLORS[1], label: '−100k to −50k' },
+        { color: COLORS[0], label: '≤ −100k acres' },
+      ];
+
+      const rows = items.map(item => `
+        <div class="legend-bar">
+          <div class="legend-swatch" style="background:${item.color}"></div>
+          <span>${item.label}</span>
+        </div>
+      `).join('');
+
+      div.innerHTML = `
+        <div class="legend-title">Change in Corn Acres Planted</div>
+        <div class="legend-scale">${rows}</div>
+        <div class="legend-no-data">
+          <div class="legend-swatch" style="background:${NO_DATA_COLOR}"></div>
+          <span>No data</span>
+        </div>
+      `;
+      return div;
+    };
+    legendControl.addTo(map);
+
+    // ── Stats control ─────────────────────────────────────────────────────────
+    const statsControl = L.control({ position: 'topleft' });
+    statsControl.onAdd = function() {
+      const div = L.DomUtil.create('div', 'stats-bar');
+      div.innerHTML = 'Loading…';
+      return div;
+    };
+    statsControl.addTo(map);
+
+  </script>
+</body>
+</html>
