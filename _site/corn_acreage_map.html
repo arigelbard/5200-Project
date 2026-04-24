@@ -106,38 +106,38 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 4px;
-      padding: 14px 16px;
+      padding: 10px 12px;
       font-family: 'Georgia', serif;
       color: var(--text);
-      min-width: 210px;
+      min-width: 170px;
       box-shadow: 0 4px 16px rgba(0,0,0,0.4);
     }
 
     .legend-title {
-      font-size: 0.75rem;
+      font-size: 0.68rem;
       color: var(--muted);
       letter-spacing: 0.06em;
       text-transform: uppercase;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
 
     .legend-scale {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 3px;
     }
 
     .legend-bar {
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-size: 0.75rem;
+      gap: 6px;
+      font-size: 0.68rem;
       color: var(--muted);
     }
 
     .legend-swatch {
-      width: 24px;
-      height: 14px;
+      width: 20px;
+      height: 12px;
       border-radius: 2px;
       flex-shrink: 0;
     }
@@ -145,34 +145,15 @@
     .legend-no-data {
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-size: 0.75rem;
+      gap: 6px;
+      font-size: 0.68rem;
       color: var(--muted);
-      margin-top: 8px;
-      padding-top: 8px;
+      margin-top: 6px;
+      padding-top: 6px;
       border-top: 1px solid var(--border);
     }
 
-    /* ── Stats widget ────────────────────────────────────────────────── */
-    .stats-bar {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 10px 14px;
-      font-family: 'Courier New', monospace;
-      font-size: 0.72rem;
-      color: var(--muted);
-      letter-spacing: 0.04em;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-      min-width: 280px;
-    }
 
-    .stats-bar .stat-value {
-      color: var(--accent);
-      font-size: 1rem;
-      display: block;
-      margin-top: 2px;
-    }
 
     /* ── Loading overlay ─────────────────────────────────────────────── */
     #loading-overlay {
@@ -202,7 +183,7 @@
 
   <header>
     <h1>Change in Corn Acreage Planted by County, 2006–2012</h1>
-    <p>USDA NASS &nbsp;·&nbsp; Continental US &nbsp;·&nbsp; Green = increase &nbsp;·&nbsp; Brown = decrease &nbsp;·&nbsp; Hover over a county for details</p>
+    <p id="map-subtitle">USDA NASS &nbsp;·&nbsp; Continental US &nbsp;·&nbsp; Green = increase &nbsp;·&nbsp; Brown = decrease &nbsp;·&nbsp; Hover over a county for details</p>
   </header>
 
   <div id="map">
@@ -228,9 +209,12 @@
 
     function getColor(change) {
       if (change === null || change === undefined) return NO_DATA_COLOR;
-      for (let i = BREAKS.length - 1; i >= 0; i--) {
-        if (change >= BREAKS[i]) return COLORS[i];
-      }
+      if (change >= 100000)  return COLORS[6];
+      if (change >= 50000)   return COLORS[5];
+      if (change >= 25000)   return COLORS[4];
+      if (change >= 0)       return COLORS[3];
+      if (change >= -25000)  return COLORS[2];
+      if (change >= -50000)  return COLORS[1];
       return COLORS[0];
     }
 
@@ -301,49 +285,45 @@
 
     function onEachFeature(feature, layer) {
       layer.bindTooltip(
-        L.tooltip({
-          sticky:    true,
+        buildTooltipHTML(feature.properties),
+        {
+          sticky:    false,
           className: 'leaflet-tooltip-custom',
           opacity:   1,
-        }).setContent(buildTooltipHTML(feature.properties))
+          permanent: false,
+        }
       );
 
       layer.on({
         mouseover(e) {
+          // Close any currently open tooltip first
+          map.eachLayer(l => { if (l.closeTooltip) l.closeTooltip(); });
+          if (geojsonLayer) geojsonLayer.resetStyle();
           e.target.setStyle({ weight: 1.5, color: '#c8a96e' });
           e.target.bringToFront();
+          e.target.openTooltip();
         },
         mouseout(e) {
           if (geojsonLayer) geojsonLayer.resetStyle(e.target);
+          e.target.closeTooltip();
         },
       });
     }
 
-    // ── Stats widget ──────────────────────────────────────────────────────────
+    // ── Update header subtitle with stats ─────────────────────────────────────
     function updateStats(data) {
-      let totalIncrease  = 0;
-      let totalDecrease  = 0;
-      let countiesUp     = 0;
-      let countiesDown   = 0;
+      let totalIncrease = 0;
+      let countiesUp    = 0;
 
       data.features.forEach(f => {
         const c = f.properties.change_acres;
-        if (c === null) return;
+        if (c === null || c === undefined) return;
         if (c >= 0) { totalIncrease += c; countiesUp++; }
-        else        { totalDecrease += c; countiesDown++; }
       });
 
-      const netM = ((totalIncrease + totalDecrease) / 1e6).toFixed(2);
-
-      statsControl.getContainer().innerHTML = `
-        <div class="stats-bar">
-          Net change in corn acreage, 2006–2012
-          <span class="stat-value">
-            +${(totalIncrease / 1e6).toFixed(1)}M acres planted
-            &nbsp;·&nbsp; ${countiesUp} counties increased
-          </span>
-        </div>
-      `;
+      document.getElementById('map-subtitle').innerHTML =
+        `<strong style="color:var(--accent)">+${(totalIncrease / 1e6).toFixed(1)}M acres planted</strong>`
+        + ` &nbsp;·&nbsp; ${countiesUp} counties increased`;
     }
 
     // ── Load GeoJSON ──────────────────────────────────────────────────────────
@@ -378,11 +358,11 @@
       const items = [
         { color: COLORS[6], label: '≥ +100k acres' },
         { color: COLORS[5], label: '+50k to +100k' },
-        { color: COLORS[4], label: '0 to +50k' },
-        { color: COLORS[3], label: '−25k to 0' },
-        { color: COLORS[2], label: '−50k to −25k' },
-        { color: COLORS[1], label: '−100k to −50k' },
-        { color: COLORS[0], label: '≤ −100k acres' },
+        { color: COLORS[4], label: '+25k to +50k' },
+        { color: COLORS[3], label: '0 to +25k' },
+        { color: COLORS[2], label: '−25k to 0' },
+        { color: COLORS[1], label: '−50k to −25k' },
+        { color: COLORS[0], label: '≤ −50k acres' },
       ];
 
       const rows = items.map(item => `
@@ -403,15 +383,6 @@
       return div;
     };
     legendControl.addTo(map);
-
-    // ── Stats control ─────────────────────────────────────────────────────────
-    const statsControl = L.control({ position: 'topleft' });
-    statsControl.onAdd = function() {
-      const div = L.DomUtil.create('div', 'stats-bar');
-      div.innerHTML = 'Loading…';
-      return div;
-    };
-    statsControl.addTo(map);
 
   </script>
 </body>

@@ -112,38 +112,38 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 4px;
-      padding: 14px 16px;
+      padding: 10px 12px;
       font-family: 'Georgia', serif;
       color: var(--text);
-      min-width: 200px;
+      min-width: 170px;
       box-shadow: 0 4px 16px rgba(0,0,0,0.4);
     }
 
     .legend-title {
-      font-size: 0.75rem;
+      font-size: 0.68rem;
       color: var(--muted);
       letter-spacing: 0.06em;
       text-transform: uppercase;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
 
     .legend-scale {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 3px;
     }
 
     .legend-bar {
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-size: 0.75rem;
+      gap: 6px;
+      font-size: 0.68rem;
       color: var(--muted);
     }
 
     .legend-swatch {
-      width: 24px;
-      height: 14px;
+      width: 20px;
+      height: 12px;
       border-radius: 2px;
       flex-shrink: 0;
     }
@@ -151,41 +151,12 @@
     .legend-no-data {
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-size: 0.75rem;
+      gap: 6px;
+      font-size: 0.68rem;
       color: var(--muted);
-      margin-top: 8px;
-      padding-top: 8px;
+      margin-top: 6px;
+      padding-top: 6px;
       border-top: 1px solid var(--border);
-    }
-
-    /* ── Stats widget ────────────────────────────────────────────────── */
-    .stats-bar {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 10px 14px;
-      font-family: 'Courier New', monospace;
-      font-size: 0.72rem;
-      color: var(--muted);
-      letter-spacing: 0.04em;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-      min-width: 260px;
-    }
-
-    .stats-bar .stat-value {
-      color: var(--accent);
-      font-size: 1rem;
-      display: block;
-      margin-top: 2px;
-    }
-
-    .slider-note {
-      font-size: 0.65rem;
-      color: var(--muted);
-      margin-top: 4px;
-      font-style: italic;
-      display: block;
     }
 
     /* ── Year slider control ─────────────────────────────────────────── */
@@ -193,9 +164,9 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 4px;
-      padding: 14px 18px;
+      padding: 10px 14px;
       box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-      min-width: 300px;
+      min-width: 240px;
       font-family: 'Courier New', monospace;
     }
 
@@ -203,18 +174,18 @@
       display: flex;
       justify-content: space-between;
       align-items: baseline;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
 
     .slider-label {
-      font-size: 0.72rem;
+      font-size: 0.68rem;
       color: var(--muted);
       letter-spacing: 0.06em;
       text-transform: uppercase;
     }
 
     .slider-year {
-      font-size: 1.4rem;
+      font-size: 1.1rem;
       color: var(--accent);
       font-weight: bold;
       letter-spacing: 0.04em;
@@ -272,7 +243,19 @@
       color: var(--accent);
     }
 
-    /* ── Loading overlay ─────────────────────────────────────────────── */
+    /* ── Footer note ─────────────────────────────────────────────────── */
+    footer {
+      padding: 8px 28px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      font-family: 'Courier New', monospace;
+      font-size: 0.68rem;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      flex-shrink: 0;
+      display: flex;
+      justify-content: space-between;
+    }
     #loading-overlay {
       position: absolute;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -299,8 +282,8 @@
 <body>
 
   <header>
-    <h1>Grassland &amp; Wetland Converted to Corn by County</h1>
-    <p>USDA Cropland Data Layer &nbsp;·&nbsp; Corn Belt states &nbsp;·&nbsp; Conversion measured from 2006 baseline &nbsp;·&nbsp; Hover over a county for details</p>
+    <h1>Grassland &amp; Wetland Converted to Corn by County in the Corn Belt</h1>
+    <p id="map-subtitle">Loading…</p>
   </header>
 
   <div id="map">
@@ -361,11 +344,21 @@
     let currentYear  = 2012;
     let mapBoundsSet = false;
 
+    // ── State FIPS to name lookup ──────────────────────────────────────────────
+    const STATE_NAMES = {
+      '17':'Illinois','18':'Indiana','19':'Iowa','20':'Kansas',
+      '27':'Minnesota','29':'Missouri','31':'Nebraska','38':'North Dakota',
+      '39':'Ohio','46':'South Dakota','55':'Wisconsin'
+    };
+
     // ── Tooltip ───────────────────────────────────────────────────────────────
     function buildTooltipHTML(props) {
+      const stateName = STATE_NAMES[props.STATEFP] || '';
+      const location  = stateName ? `${props.NAME} County, ${stateName}` : `${props.NAME} County`;
+
       if (props.conversion_rate === null || props.conversion_rate === undefined) {
         return `
-          <div class="tooltip-county">${props.NAME} County</div>
+          <div class="tooltip-county">${location}</div>
           <div class="tooltip-no-data">No significant natural land</div>
         `;
       }
@@ -377,7 +370,7 @@
         ? props.retained_ha.toLocaleString(undefined, { maximumFractionDigits: 0 })
         : '—';
       return `
-        <div class="tooltip-county">${props.NAME} County</div>
+        <div class="tooltip-county">${location}</div>
         <div class="tooltip-row"><span>Conversion rate</span><span>${rate}%</span></div>
         <div class="tooltip-row"><span>Converted (vs 2006)</span><span>${converted} ha</span></div>
         <div class="tooltip-row"><span>Natural retained</span><span>${retained} ha</span></div>
@@ -386,25 +379,31 @@
 
     function onEachFeature(feature, layer) {
       layer.bindTooltip(
-        L.tooltip({
-          sticky:    true,
+        buildTooltipHTML(feature.properties),
+        {
+          sticky:    false,
           className: 'leaflet-tooltip-custom',
           opacity:   1,
-        }).setContent(buildTooltipHTML(feature.properties))
+          permanent: false,
+        }
       );
 
       layer.on({
         mouseover(e) {
+          map.eachLayer(l => { if (l.closeTooltip) l.closeTooltip(); });
+          if (geojsonLayer) geojsonLayer.resetStyle();
           e.target.setStyle({ weight: 1.5, color: '#c8a96e' });
           e.target.bringToFront();
+          e.target.openTooltip();
         },
         mouseout(e) {
           if (geojsonLayer) geojsonLayer.resetStyle(e.target);
+          e.target.closeTooltip();
         },
       });
     }
-
-    // ── Stats widget ──────────────────────────────────────────────────────────
+    
+    // ── Update header subtitle with stats ─────────────────────────────────────
     function updateStats(data, year) {
       let totalConverted = 0;
       let totalRetained  = 0;
@@ -416,17 +415,11 @@
 
       const pct        = (totalConverted / (totalConverted + totalRetained) * 100).toFixed(1);
       const convertedM = (totalConverted / 1e6).toFixed(2);
-      const note       = year === 2006
-        ? '<span class="slider-note">Baseline year — no conversion yet recorded</span>'
-        : '';
 
-      statsControl.getContainer().innerHTML = `
-        <div class="stats-bar">
-          Converted since 2006 baseline
-          <span class="stat-value">${convertedM}M hectares &nbsp;·&nbsp; ${pct}%</span>
-          ${note}
-        </div>
-      `;
+      document.getElementById('map-subtitle').innerHTML = year === 2006
+        ? `<em style="color:var(--muted)">Baseline year — no conversion recorded</em>`
+        : `<strong style="color:var(--accent)">${convertedM}M hectares converted</strong>`
+          + ` &nbsp;·&nbsp; ${pct}% of natural land lost since 2006`;
     }
 
     // ── Render a year's data ──────────────────────────────────────────────────
@@ -524,15 +517,6 @@
       return div;
     };
     legendControl.addTo(map);
-
-    // ── Stats control ─────────────────────────────────────────────────────────
-    const statsControl = L.control({ position: 'topleft' });
-    statsControl.onAdd = function() {
-      const div = L.DomUtil.create('div', 'stats-bar');
-      div.innerHTML = 'Loading…';
-      return div;
-    };
-    statsControl.addTo(map);
 
     // ── Slider control ────────────────────────────────────────────────────────
     const sliderControl = L.control({ position: 'bottomleft' });

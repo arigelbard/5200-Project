@@ -192,16 +192,23 @@
       font-size: clamp(1rem, 1.8vw, 1.25rem);
       color: var(--earth-light);
       font-style: italic;
-      margin-bottom: 40px;
-      max-width: 55ch;
+      margin-bottom: 0;
+      max-width: 75ch;
     }
 
     .hero-body {
-      max-width: 60ch;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: start;
+      margin-top: 32px;
     }
 
+    .hero-text { }
+
     .hero-body p {
-      font-size: 1.1rem;
+      font-size: 1.05rem;
+      max-width: none;
     }
 
     /* Policy tag strip */
@@ -223,7 +230,32 @@
       background: var(--parchment);
     }
 
-    /* Section divider */
+    /* ── Hero image ──────────────────────────────────────────────────── */
+    .hero-image {
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+      position: sticky;
+      top: 80px;
+    }
+
+    .hero-image img {
+      width: 100%;
+      height: 420px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .hero-image-caption {
+      padding: 8px 12px;
+      background: var(--parchment);
+      border: 1px solid var(--border);
+      border-top: none;
+      font-family: 'Source Code Pro', monospace;
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      letter-spacing: 0.03em;
+    }
     .section-divider {
       width: 48px;
       height: 3px;
@@ -467,6 +499,7 @@
       nav { padding: 0 20px; }
       .nav-title { display: none; }
       #intro { padding: 100px 24px 60px; }
+      .hero-body { grid-template-columns: 1fr; gap: 32px; }
       .section { padding: 80px 24px; }
       .side-by-side { grid-template-columns: 1fr; gap: 40px; }
       .side-by-side.text-right .text-col { order: 2; }
@@ -502,17 +535,33 @@
     <div class="section-divider"></div>
 
     <div class="hero-body">
-      <!-- PLACEHOLDER: Replace with your introduction text -->
-      <p><em>[Introduction text placeholder. Describe the Energy Policy Act of 2005 and the Energy Independence and Security Act of 2007 here. Explain what the mandate promised — reduced dependence on foreign oil and lower greenhouse gas emissions — and introduce the three unintended consequences the story will explore.]</em></p>
-      <p><em>[Continue with background on how ethanol mandates worked, what the renewable fuel standard required, and the scale of the policy change.]</em></p>
+      <!-- Left column: text -->
+      <div class="hero-text">
+        <p>In the early 2000s, the United States was facing a wide range of global challenges that impacted our energy security. With rising oil prices due to foreign conflicts, a growing concern about climate change, and a pressure to reduce fossil fuel dependence, Congress decided to take action. In 2005, they passed the Energy Policy Act, the first federal Renewable Fuel Standard which mandated that billions of gallons of corn ethanol be blended into the American gasoline supply each year. Two years later, they passed the Energy Independence and Security Act of 2007, which dramatically expanded the ambition, setting a target of 36 billion gallons of renewable fuel annually by 2022.</p>
+        <p>These laws were passed with the goals of reducing dependence on foreign oil, and cutting greenhouse gas emissions by replacing fossil fuels with a homegrown, plant-based alternative. Corn ethanol, grown by American farmers and processed in American refineries, seemed to offer both at once. By 2013, roughly 40% of the entire US corn crop was being diverted to fuel production (U.S. Department of Energy [DOE], n.d.).</p>
+        <p>What the mandate's architects did not fully anticipate was how a policy change of that scale would ripple through interconnected global systems. Corn is a foundational commodity in global food markets, animal feed supply chains, and agricultural land use decisions across multiple continents. So, when American farmers shifted millions of acres toward fuel corn, the consequences extended far beyond the fuel tank.</p>
+        <p>This project examines three of those consequences through data. Food prices spiked globally as corn supply tightened, with the burden falling disproportionately on the world's poorest populations. Across the Corn Belt, millions of acres of grassland and wetland were converted to cropland to meet the new demand. And when independent researchers ran the full lifecycle accounting for corn ethanol's greenhouse gas emissions, accounting for what happened to land use shifts as well as emissions from vehicles, they found that the climate math did not add up the way Congress had hoped.</p>
+
+        <div class="policy-tags">
+          <span class="policy-tag">Energy Policy Act · 2005</span>
+          <span class="policy-tag">Energy Independence &amp; Security Act · 2007</span>
+          <span class="policy-tag">Renewable Fuel Standard</span>
+          <span class="policy-tag">Corn Ethanol</span>
+        </div>
+      </div>
+
+      <!-- Right column: image -->
+      <div class="hero-image">
+        <img
+          src="https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=800&q=80"
+          alt="Aerial view of corn fields in the American Midwest"
+        />
+        <div class="hero-image-caption">
+          Corn fields in the American Midwest &nbsp;·&nbsp; Photo: Unsplash
+        </div>
+      </div>
     </div>
 
-    <div class="policy-tags">
-      <span class="policy-tag">Energy Policy Act · 2005</span>
-      <span class="policy-tag">Energy Independence & Security Act · 2007</span>
-      <span class="policy-tag">Renewable Fuel Standard</span>
-      <span class="policy-tag">Corn Ethanol</span>
-    </div>
   </section>
 
   <!-- ══════════════════════════════════════════════════════════════════ -->
@@ -528,8 +577,8 @@
 
     <!-- PLACEHOLDER: Partner's section -->
     <div class="placeholder">
-      <div class="placeholder-label">Partner Section — Food Prices</div>
-      <p class="placeholder-desc">This section will be completed by your partner and will include interactive visualizations showing the relationship between the ethanol mandate and global food price increases.</p>
+      <div class="placeholder-label">Pavlos' Section - Food Prices</div>
+      <p class="placeholder-desc">Placeholder text</p>
     </div>
 
   </section>
@@ -540,7 +589,7 @@
   <section id="land-use" class="section">
     <div class="section-header">
       <div class="section-number">Unintended Consequence 02</div>
-      <h2>Fields of Green, Lost Forever</h2>
+      <h2>Destroyed Land</h2>
       <h3>The mandate's quiet destruction of America's grasslands and wetlands</h3>
       <div class="section-divider"></div>
     </div>
@@ -548,8 +597,8 @@
     <!-- Text + first map side by side -->
     <div class="side-by-side text-left">
       <div class="text-col">
-        <p><em>[Placeholder: Explain how the ethanol mandate dramatically increased corn acreage across the Corn Belt. Describe what the map shows — which states saw the largest expansions, and why North Dakota and South Dakota stand out. Reference the USDA NASS data source.]</em></p>
-        <p><em>[Continue: Discuss what this corn expansion meant for farmers' decisions — the economic incentive to plant more corn created by the mandate's guaranteed demand.]</em></p>
+        <p><em>[Placeholder: Explain how the ethanol mandate dramatically increased corn acreage across the Corn Belt. Describe what the map shows - which states saw the largest expansions, and why North Dakota and South Dakota stand out. Reference the USDA NASS data source.]</em></p>
+        <p><em>[Continue: Discuss what this corn expansion meant for farmers' decisions - the economic incentive to plant more corn created by the mandate's guaranteed demand.]</em></p>
 
         <!-- Key stats -->
         <div class="stat-row">
@@ -584,7 +633,7 @@
 
     <!-- Connector text between maps -->
     <div class="map-connector">
-      <p><em>[Placeholder: Transition text connecting the two maps. Explain that the corn acreage expansion shown above came at a direct cost — natural grasslands and wetlands were converted to cropland to meet the new demand. This sets up the CDL conversion map below.]</em></p>
+      <p><em>[Placeholder: Transition text connecting the two maps. Explain that the corn acreage expansion shown above came at a direct cost - natural grasslands and wetlands were converted to cropland to meet the new demand. This sets up the CDL conversion map below.]</em></p>
     </div>
 
     <!-- Second map + text side by side (text on right) -->
@@ -603,8 +652,8 @@
       </div>
 
       <div class="text-col">
-        <p><em>[Placeholder: Explain what the CDL conversion map shows — the percentage of each county's natural land (grassland and wetland) that was converted to corn between 2006 and 2012. Explain the color scale.]</em></p>
-        <p><em>[Discuss the geographic pattern — why Illinois and Indiana show high conversion rates despite not showing dramatic corn acreage increases. Reference the explanation we developed: those states had very little natural land remaining, so even small conversions represented a high percentage.]</em></p>
+        <p><em>[Placeholder: Explain what the CDL conversion map shows - the percentage of each county's natural land (grassland and wetland) that was converted to corn between 2006 and 2012. Explain the color scale.]</em></p>
+        <p><em>[Discuss the geographic pattern - why Illinois and Indiana show high conversion rates despite not showing dramatic corn acreage increases. Reference the explanation we developed: those states had very little natural land remaining, so even small conversions represented a high percentage.]</em></p>
 
         <div class="stat-row">
           <div class="stat-box">
@@ -638,8 +687,8 @@
 
     <div class="side-by-side text-left">
       <div class="text-col">
-        <p><em>[Placeholder: Explain the carbon emissions story. The mandate required corn ethanol to produce 20% fewer lifecycle GHG emissions than gasoline — the EPA's model showed this was achievable. But Searchinger et al. (2008) found that once indirect land use change was accounted for, corn ethanol produced 93% more emissions than gasoline.]</em></p>
-        <p><em>[Explain the key concept of indirect land use change — when US farmers convert food cropland to corn for ethanol, food production has to come from somewhere else globally, triggering deforestation and land clearing that releases massive amounts of carbon.]</em></p>
+        <p><em>[Placeholder: Explain the carbon emissions story. The mandate required corn ethanol to produce 20% fewer lifecycle GHG emissions than gasoline - the EPA's model showed this was achievable. But Searchinger et al. (2008) found that once indirect land use change was accounted for, corn ethanol produced 93% more emissions than gasoline.]</em></p>
+        <p><em>[Explain the key concept of indirect land use change - when US farmers convert food cropland to corn for ethanol, food production has to come from somewhere else globally, triggering deforestation and land clearing that releases massive amounts of carbon.]</em></p>
         <p><em>[Note the methodological caveat: the bar chart shows lifecycle emissions per megajoule of fuel under each model. All three values are modeled estimates, not observed measurements. The gasoline baseline and Searchinger values come from Searchinger et al. (2008), Table 1. The EPA projection derives from the RFS2 mandated −20% threshold.]</em></p>
       </div>
 
@@ -672,15 +721,15 @@
 
     <div class="side-by-side text-left">
       <div class="text-col">
-        <p><em>[Placeholder: Summarize the three unintended consequences — food prices, land use, and carbon emissions. Tie them together as a systemic failure of partial-equilibrium thinking: the policy designers looked at direct effects but missed the indirect systemic responses that the mandate would trigger in global agricultural and land markets.]</em></p>
-        <p><em>[Discuss what happened next — the EPA has reduced ethanol mandates in recent years partly in response to this evidence. Note that the Searchinger research contributed to the political environment that made those reductions possible.]</em></p>
+        <p><em>[Placeholder: Summarize the three unintended consequences - food prices, land use, and carbon emissions. Tie them together as a systemic failure of partial-equilibrium thinking: the policy designers looked at direct effects but missed the indirect systemic responses that the mandate would trigger in global agricultural and land markets.]</em></p>
+        <p><em>[Discuss what happened next - the EPA has reduced ethanol mandates in recent years partly in response to this evidence. Note that the Searchinger research contributed to the political environment that made those reductions possible.]</em></p>
         <p><em>[Closing thought: the biofuel case study is a reminder that well-intentioned policies can have large unintended consequences when they interact with complex global systems.]</em></p>
       </div>
 
       <div class="viz-col">
         <!-- Infographic placeholder -->
         <div class="placeholder">
-          <div class="placeholder-label">Infographic — Coming Soon</div>
+          <div class="placeholder-label">Infographic - Coming Soon</div>
           <p class="placeholder-desc">A summary infographic will appear here showing the three unintended consequences of the ethanol mandate side by side.</p>
         </div>
       </div>

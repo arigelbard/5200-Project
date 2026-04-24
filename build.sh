@@ -75,7 +75,7 @@ printf 'Do you want to push the website to the Georgetown University domains fol
 read answer 
 
 if [ "$answer" != "${answer#[Yy]}" ] ;then 
-    rsync -Prltvc --delete _site/* arigelba@gtown03.reclaimhosting.com:/home/arigelba/public_html/dsan5200-project
+    rsync -avz --delete -e "ssh -i ~/.ssh/id_rsa" _site/* arigelba@gtown03.reclaimhosting.com:/home/arigelba/public_html/dsan5200-project
 else 
     echo NOT PUSHING TO WEBSITE!
 fi
