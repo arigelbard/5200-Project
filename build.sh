@@ -39,7 +39,7 @@ mkdir _site
 #################################################################
 ### Copy relevant files into folder
 # Copy HTML pages
-cp outputs/index.html _site/
+cp scripts/index.html _site/
 cp scripts/corn_acreage_map/corn_acreage_map.html _site/
 cp scripts/corn_belt_map/corn_belt_map.html _site/
 
