@@ -317,11 +317,11 @@
         const b = Math.round(255 * (1 - t * 0.87));
         return `rgb(${r},${g},${b})`;
       } else if (v < 0) {
-        // Net gain — white to blue
+        // Net gain — white to dark green
         const t = -v / 10;
-        const r = Math.round(255 * (1 - t * 0.80));
-        const g = Math.round(255 * (1 - t * 0.50));
-        const b = 255;
+        const r = Math.round(255 * (1 - t * 0.75));
+        const g = Math.round(255 * (1 - t * 0.35));
+        const b = Math.round(255 * (1 - t * 0.75));
         return `rgb(${r},${g},${b})`;
       }
       return '#ffffff';
@@ -498,7 +498,7 @@
     function updateSliderUI(year) {
       const display = document.getElementById('slider-year-display');
       const slider  = document.getElementById('year-slider');
-      if (display) display.textContent = year;
+      if (display) display.textContent = `${year - 1}→${year}`;
       if (slider)  slider.value = year;
       document.querySelectorAll('.slider-tick').forEach(el => {
         el.classList.toggle('active', parseInt(el.dataset.year) === year);
@@ -522,12 +522,12 @@
         <div class="legend-title">Net Natural Land Change</div>
         <div class="legend-scale">
           <div class="legend-bar">
-            <div class="legend-swatch" style="background:rgb(46,128,255)"></div>
-            <span>≤ −10% (net gain)</span>
+            <div class="legend-swatch" style="background:rgb(64,166,64)"></div>
+            <span>≥ +10% (net gain)</span>
           </div>
           <div class="legend-bar">
-            <div class="legend-swatch" style="background:rgb(153,204,255)"></div>
-            <span>−5%</span>
+            <div class="legend-swatch" style="background:rgb(160,218,160)"></div>
+            <span>+5%</span>
           </div>
           <div class="legend-bar">
             <div class="legend-swatch" style="background:#ffffff;border:1px solid #555"></div>
@@ -535,11 +535,11 @@
           </div>
           <div class="legend-bar">
             <div class="legend-swatch" style="background:rgb(255,204,204)"></div>
-            <span>+5%</span>
+            <span>-5%</span>
           </div>
           <div class="legend-bar">
             <div class="legend-swatch" style="background:rgb(255,46,33)"></div>
-            <span>≥ +10% (net loss)</span>
+            <span>≤ -10% (net loss)</span>
           </div>
         </div>
         <div class="legend-no-data">
@@ -556,16 +556,19 @@
     sliderControl.onAdd = function() {
       const div = L.DomUtil.create('div', 'slider-control');
 
-      const ticks = YEARS.map(y => `
-        <span class="slider-tick ${y === currentYear ? 'active' : ''}"
-              data-year="${y}"
-              onclick="setYear(${y})">${y}</span>
-      `).join('');
+      const ticks = YEARS.map(y => {
+        const label = `'${String(y-1).slice(-2)}→'${String(y).slice(-2)}`;
+        return `
+          <span class="slider-tick ${y === currentYear ? 'active' : ''}"
+                data-year="${y}"
+                onclick="setYear(${y})">${label}</span>
+        `;
+      }).join('');
 
       div.innerHTML = `
         <div class="slider-header">
-          <span class="slider-label">Year</span>
-          <span class="slider-year" id="slider-year-display">${currentYear}</span>
+          <span class="slider-label">Interval</span>
+          <span class="slider-year" id="slider-year-display">${currentYear - 1}→${currentYear}</span>
         </div>
         <input
           type="range"

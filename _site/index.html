@@ -305,7 +305,9 @@
     }
 
     .viz-col {
-      position: relative;
+      position: sticky;
+      top: 80px;
+      align-self: start;
     }
 
     /* ── Map iframes ─────────────────────────────────────────────────── */
@@ -645,31 +647,32 @@
         <div class="map-frame-wrapper">
           <iframe
             src="corn_belt_map.html"
-            title="Grassland and wetland converted to corn by county, 2006–2012"
+            title="Year-over-year natural land flows by county, 2007–2012"
             loading="lazy"
           ></iframe>
           <div class="map-caption">
-            Fig. 2 &nbsp;·&nbsp; Grassland &amp; Wetland Converted to Corn by County, 2006–2012 &nbsp;·&nbsp; Source: USDA Cropland Data Layer
+            Fig. 2 &nbsp;·&nbsp; Year-over-Year Natural Land Flows by County, 2007–2012 &nbsp;·&nbsp; Source: USDA Cropland Data Layer
           </div>
         </div>
       </div>
 
       <div class="text-col">
-        <p><em>[Placeholder: Explain what the CDL conversion map shows - the percentage of each county's natural land (grassland and wetland) that was converted to corn between 2006 and 2012. Explain the color scale.]</em></p>
-        <p><em>[Discuss the geographic pattern - why Illinois and Indiana show high conversion rates despite not showing dramatic corn acreage increases. Reference the explanation we developed: those states had very little natural land remaining, so even small conversions represented a high percentage.]</em></p>
+        <p><em>The map to the left shows exactly where those losses occurred. Using USDA Cropland Data Layer satellite imagery, it tracks the net change in natural land, counting both conversions of grassland/wetland to corn and reversions of corn back to natural land, for each year from 2007 to 2012. Counties in deep red lost more than 10% of their natural land to corn on net in that interval. Counties in green gained natural land, reflecting fields that were taken out of corn production and allowed to revert.</em></p>
+        <p><em>The geographic pattern here diverges sharply from the acreage map. The most dramatic net losses are not concentrated in North Dakota or South Dakota,the states that saw the most dramatic absolute increases in corn acreage, but in Illinois and Indiana, along with parts of Minnesota and Iowa. The reason lies in what was left. States like Illinois and Indiana had already lost the vast majority of their natural land to agriculture long before the ethanol mandate. By 2007, so little grassland and wetland remained in these states that even modest additional conversion represented an outsized share of what was left. In heavily farmed states, the mandate did not push into new agricultural frontiers, iit consumed the last remnants of natural land that had persisted for decades alongside intensive row crop production.</em></p>
+        <p><em>The year-by-year slider reveals that the story was not linear. Illinois and Indiana saw their sharpest losses concentrated in 2007-2008, when the mandate's volume requirements first ramped up dramatically following EISA. Illinois then showed a striking reversal in 2011-2012, one of the largest net gains of any state in any single interval, likely reflecting crop rotation patterns and the Economics of the 2012 drought, which damaged corn yields severely enough that some farmers shifted acreage to other crops or conservation uses. This kind of year-to-year volatility is a reminder that land use decisions respond not only to policy mandates but to weather, commodity prices, and individual farm economics that play out across millions of individual fields simultaneously.</em></p>
 
         <div class="stat-row">
           <div class="stat-box">
-            <span class="stat-number">3.2M</span>
-            <span class="stat-label">Hectares of natural land converted to corn</span>
+            <span class="stat-number">2.33M</span>
+            <span class="stat-label">Hectares of net natural land lost, 2007–2012</span>
           </div>
           <div class="stat-box">
-            <span class="stat-number">5.2%</span>
-            <span class="stat-label">Of all Corn Belt natural land lost</span>
+            <span class="stat-number">3.4%</span>
+            <span class="stat-label">Of 2007 Corn Belt natural land lost on net</span>
           </div>
           <div class="stat-box">
-            <span class="stat-number">167yr</span>
-            <span class="stat-label">Carbon payback period (Searchinger, 2008)</span>
+            <span class="stat-number">9.4M</span>
+            <span class="stat-label">Hectares converted to corn (gross, before reversions)</span>
           </div>
         </div>
       </div>
@@ -690,9 +693,10 @@
 
     <div class="side-by-side text-left">
       <div class="text-col">
-        <p><em>[Placeholder: Explain the carbon emissions story. The mandate required corn ethanol to produce 20% fewer lifecycle GHG emissions than gasoline - the EPA's model showed this was achievable. But Searchinger et al. (2008) found that once indirect land use change was accounted for, corn ethanol produced 93% more emissions than gasoline.]</em></p>
-        <p><em>[Explain the key concept of indirect land use change - when US farmers convert food cropland to corn for ethanol, food production has to come from somewhere else globally, triggering deforestation and land clearing that releases massive amounts of carbon.]</em></p>
-        <p><em>[Note the methodological caveat: the bar chart shows lifecycle emissions per megajoule of fuel under each model. All three values are modeled estimates, not observed measurements. The gasoline baseline and Searchinger values come from Searchinger et al. (2008), Table 1. The EPA projection derives from the RFS2 mandated −20% threshold.]</em></p>
+        <p><em>Finally, when Congress passed the Energy Independence and Security Act, it included a requirement that corn ethanol produce at least 20% fewer lifecycle greenhouse gas emissions than the gasoline it replaced. The EPA's modeling suggested this threshold was achievable, accounting for the energy used to grow, harvest, and refine corn into ethanol, the agency projected lifecycle emissions of around 74 gCO₂eq per megajoule of fuel, comfortably below the gasoline baseline of 92 gCO₂eq/MJ. On paper, corn ethanol was a climate solution.</em></p>
+        <p><em>The problem was what the EPA's model left out.</em></p>
+        <p><em>In 2008, a team of researchers led by Timothy Searchinger at Princeton published a paper in Science that fundamentally reframed the climate accounting for corn ethanol. Their argument was that when American farmers convert cropland to grow corn for fuel, the food that cropland used to produce has to come from somewhere else. That somewhere else, they showed, was overwhelmingly land that had previously been forest, savannah, or grassland, primarily in Brazil, China, and India. Clearing that land releases enormous quantities of carbon stored in soil and vegetation, carbon that had accumulated over decades or centuries. Once this indirect land use change was included in the lifecycle calculation, corn ethanol's emissions rose to approximately 177 gCO₂eq/MJ, nearly double the gasoline baseline, and 93% higher than the fuel it was supposed to replace. Searchinger et al. estimated it would take roughly 167 years of displacement to repay this carbon debt.</em></p>
+        <p><em>The chart to the right illustrates the gap between these two accounting frameworks. All three values are modeled estimates, rather than observed measurements, of lifecycle emissions accounting requires assumptions about global land use responses that cannot be directly measured. The EPA and Searchinger teams made different assumptions about how much land conversion would be triggered by the mandate and where that conversion would occur, which is what produces the dramatic divergence in their results. What is not in dispute is the underlying mechanism: policies that increase demand for crops grown on finite agricultural land will push food production elsewhere, and that displacement has a carbon cost that direct emissions accounting does not capture.</em></p>
       </div>
 
       <div class="viz-col">

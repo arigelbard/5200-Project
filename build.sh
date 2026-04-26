@@ -1,37 +1,37 @@
 ###############################################################
 ### Optionally rerun python scripts
-read -p "Rerun Python scripts before building? (y/n): " rerun
+# read -p "Rerun Python scripts before building? (y/n): " rerun
 
-if [ "$rerun" = "y" ]; then
-    echo ""
-    echo "Running scripts/process_corn.py..."
-    cd scripts
-    python process_corn.py
-    if [ $? -ne 0 ]; then
-        echo "ERROR: process_corn.py failed. Aborting build."
-        exit 1
-    fi
+# if [ "$rerun" = "y" ]; then
+#     echo ""
+#     echo "Running scripts/process_corn.py..."
+#     cd scripts
+#     python process_corn.py
+#     if [ $? -ne 0 ]; then
+#         echo "ERROR: process_corn.py failed. Aborting build."
+#         exit 1
+#     fi
 
-    echo ""
-    echo "Running scripts/process_cdl.py..."
-    python process_cdl.py
-    if [ $? -ne 0 ]; then
-        echo "ERROR: process_cdl.py failed. Aborting build."
-        exit 1
-    fi
+#     echo ""
+#     echo "Running scripts/process_cdl.py..."
+#     python process_cdl.py
+#     if [ $? -ne 0 ]; then
+#         echo "ERROR: process_cdl.py failed. Aborting build."
+#         exit 1
+#     fi
 
-    echo ""
-    echo "Running scripts/ghg_lifecycle_bar.py..."
-    python ghg_lifecycle_bar.py
-    if [ $? -ne 0 ]; then
-        echo "ERROR: ghg_lifecycle_bar.py failed. Aborting build."
-        exit 1
-    fi
+#     echo ""
+#     echo "Running scripts/ghg_lifecycle_bar.py..."
+#     python ghg_lifecycle_bar.py
+#     if [ $? -ne 0 ]; then
+#         echo "ERROR: ghg_lifecycle_bar.py failed. Aborting build."
+#         exit 1
+#     fi
 
-    cd ../
-    echo ""
-    echo "All scripts completed successfully."
-fi
+#     cd ../
+#     echo ""
+#     echo "All scripts completed successfully."
+# fi
 
 ###############################################################
 ### Clean up step
