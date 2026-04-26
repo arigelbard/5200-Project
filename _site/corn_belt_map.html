@@ -498,7 +498,7 @@
     function updateSliderUI(year) {
       const display = document.getElementById('slider-year-display');
       const slider  = document.getElementById('year-slider');
-      if (display) display.textContent = `${year - 1}→${year}`;
+      if (display) display.textContent = `${year - 1}-${year}`;
       if (slider)  slider.value = year;
       document.querySelectorAll('.slider-tick').forEach(el => {
         el.classList.toggle('active', parseInt(el.dataset.year) === year);
@@ -557,7 +557,7 @@
       const div = L.DomUtil.create('div', 'slider-control');
 
       const ticks = YEARS.map(y => {
-        const label = `'${String(y-1).slice(-2)}→'${String(y).slice(-2)}`;
+        const label = `'${String(y-1).slice(-2)}-'${String(y).slice(-2)}`;
         return `
           <span class="slider-tick ${y === currentYear ? 'active' : ''}"
                 data-year="${y}"
@@ -568,7 +568,7 @@
       div.innerHTML = `
         <div class="slider-header">
           <span class="slider-label">Interval</span>
-          <span class="slider-year" id="slider-year-display">${currentYear - 1}→${currentYear}</span>
+          <span class="slider-year" id="slider-year-display">${currentYear - 1}-${currentYear}</span>
         </div>
         <input
           type="range"
