@@ -1,32 +1,38 @@
 """
 CDL Processing Pipeline
 ------------------------
-Produces two maps showing grassland/wetland land use change across the
-Corn Belt between 2006 and 2012:
-  1. Pixel-level map of converted vs. retained natural land
-  2. County-level choropleth of conversion rate per year
+Produces maps showing year-over-year natural land flows across the
+Corn Belt between 2006 and 2012, including both:
+  - Natural→Corn conversions
+  - Corn→Natural reversions
 
 Steps:
-  1. Reproject all files to EPSG:5070 (NAD83 Albers)
+  1. Reproject all files to EPSG:5070 (NAD83 Albers) onto a shared grid
   2. Resample all 56m files (2006, 2007) to 30m (nearest neighbor)
   3. Mosaic all 11 states into one raster per year
-  4. Compute conversion layer per year (always vs. 2006 baseline)
-  5. Visualize pixel-level map (2006 vs 2012 only)
-  6. Aggregate to county level and visualize choropleth
+  4. Compute flow layer per consecutive year pair
+  5. Visualize pixel-level map (2011→2012 interval)
+  6. Aggregate to county level and visualize choropleth (2011→2012)
   7. Export GeoJSON per year for Leaflet time slider
 
+Flow layer pixel values:
+  0 = no relevant change
+  1 = natural→corn (conversion)
+  2 = corn→natural (reversion)
+
 Requirements:
-    pip install rasterio numpy matplotlib geopandas rasterstats
+    pip install rasterio numpy matplotlib geopandas rasterstats affine
 
 Outputs (written to ../outputs/):
-    cdl_conversion_map.png              - pixel-level map (2006 vs 2012)
-    cdl_conversion_county_map.png       - county-level choropleth (2006 vs 2012)
-    corn_belt_YEAR.geojson              - one GeoJSON per year for Leaflet
+    cdl_flow_map.png                - pixel-level flow map (2011→2012)
+    cdl_flow_county_map.png         - county-level net change choropleth
+    corn_belt_YEAR.geojson          - one GeoJSON per year for Leaflet
 """
 
 ###################################################################
 # %% Imports and configuration
 import os
+import math
 import rasterio
 import rasterio.merge
 import rasterio.warp
@@ -39,7 +45,9 @@ import matplotlib.colors as mcolors
 import matplotlib.patches as mpatches
 import shutil
 from pathlib import Path
-from rasterio.warp import calculate_default_transform, reproject, Resampling
+from affine import Affine
+from rasterio.crs import CRS
+from rasterio.warp import calculate_default_transform, reproject, Resampling, transform_bounds
 from rasterstats import zonal_stats
 
 # ── Configuration ─────────────────────────────────────────────────────────────
@@ -55,11 +63,16 @@ VIZ_DIR.mkdir(exist_ok=True)
 STATES = ['IA', 'IL', 'IN', 'KS', 'MN', 'MO', 'ND', 'NE', 'OH', 'SD', 'WI']
 YEARS  = [2006, 2007, 2008, 2009, 2010, 2011, 2012]
 
+# Flow layers cover consecutive year pairs: 2006→2007, 2007→2008, ...
+FLOW_YEARS = YEARS[1:]   # [2007, 2008, 2009, 2010, 2011, 2012]
+
 # 2006 and 2007 are 56m resolution, all others are 30m
 RESOLUTION_MAP = {year: '56m' if year <= 2007 else '30m' for year in YEARS}
 
 TARGET_CRS = 'EPSG:5070'
 TARGET_RES = 30
+
+MIN_NATURAL_PIXELS = 100
 
 # Land cover codes
 CODES_OF_INTEREST = {
@@ -76,11 +89,6 @@ CORN_BELT_FIPS = [
 # ── Build file path from state + year ─────────────────────────────────────────
 
 def get_tif_path(state, year):
-    """
-    Constructs the path based on observed naming pattern:
-      BASE_DIR / IA / cdl_56m_r_ia_2006_albers.tif
-    2006 and 2007 use 56m resolution, 2008-2012 use 30m resolution.
-    """
     state_lower = state.lower()
     res = RESOLUTION_MAP[year]
     filename = f'cdl_{res}_r_{state_lower}_{year}_albers.tif'
@@ -106,19 +114,18 @@ for state in STATES:
                 crs   = src.crs.to_string()
                 res_m = round(src.res[0], 1)
                 shape = src.shape
-                data  = src.read(1)
+                # Downsample for speed — just need approximate counts
+                data  = src.read(
+                    1,
+                    out_shape=(src.height // 10, src.width // 10),
+                    resampling=Resampling.nearest
+                )
 
             unique, counts = np.unique(data, return_counts=True)
             code_counts = dict(zip(unique.tolist(), counts.tolist()))
 
-            row = {
-                'state': state,
-                'year':  year,
-                'crs':   crs,
-                'res_m': res_m,
-                'rows':  shape[0],
-                'cols':  shape[1],
-            }
+            row = {'state': state, 'year': year, 'crs': crs,
+                   'res_m': res_m, 'rows': shape[0], 'cols': shape[1]}
             for code, name in CODES_OF_INTEREST.items():
                 row[name] = code_counts.get(code, 0)
 
@@ -139,41 +146,32 @@ else:
     print(f"\n✓ All {len(STATES) * len(YEARS)} files loaded successfully")
 
 if rows:
-    df = pd.DataFrame(rows)
-
-    print("\n── Pixel counts for key land cover codes ──\n")
+    df_explore = pd.DataFrame(rows)
     display_cols = ['state', 'year', 'Corn', 'Grassland/Pasture',
                     'Woody Wetlands', 'Herbaceous Wetlands']
-    print(df[display_cols].to_string(index=False))
-
-    print("\n── CRS and resolution check ──")
-    print("Unique CRS values found:", df['crs'].nunique(), "distinct CRS")
-    print("Unique resolutions (m):", df['res_m'].unique())
-    if df['crs'].nunique() > 1:
-        print("⚠ WARNING: Not all files share the same CRS!")
-        print("  You will need to reproject before merging.")
+    print("\n── Pixel counts (downsampled ~1%) ──\n")
+    print(df_explore[display_cols].to_string(index=False))
+    print("\n── CRS check ──")
+    print("Unique CRS values:", df_explore['crs'].nunique(), "distinct")
+    if df_explore['crs'].nunique() > 1:
+        print("⚠ CRS mismatch — reprojection required")
     else:
-        print("✓ All files share the same CRS — safe to merge")
+        print("✓ All files share the same CRS")
 
 ###################################################################
-# %% Step 1 & 2: Reproject and resample
+# %% Step 1 & 2: Reproject and resample onto shared grid
 
-# ── Compute a shared reference grid from the full Corn Belt extent ────────────
-# The root cause of inter-year pixel misalignment is that each file's
-# calculate_default_transform() produces a slightly different origin.
-# Fix: compute the combined bounding box of ALL source files across ALL years,
-# then snap it to a clean 30m grid. Every file is reprojected onto this
-# identical grid, guaranteeing pixel-perfect alignment.
+# ── Compute a shared reference grid ───────────────────────────────────────────
+# Each file's calculate_default_transform() produces a slightly different
+# pixel origin, causing misalignment when comparing years.
+# Fix: compute the combined bounding box of ALL files, snap to a clean 30m
+# grid boundary, and reproject every file onto this identical shared grid.
 
 print("\nComputing shared reference grid from all source files...")
 
-import math
-from rasterio.crs import CRS
-
 target_crs_obj = CRS.from_string(TARGET_CRS)
-
-all_bounds_x = []
-all_bounds_y = []
+all_bounds_x   = []
+all_bounds_y   = []
 
 for year in YEARS:
     for state in STATES:
@@ -181,36 +179,25 @@ for year in YEARS:
         if not src_path.exists():
             continue
         with rasterio.open(src_path) as src:
-            # Reproject bounds to target CRS
-            from rasterio.warp import transform_bounds
             bounds = transform_bounds(src.crs, target_crs_obj, *src.bounds)
             all_bounds_x += [bounds[0], bounds[2]]
             all_bounds_y += [bounds[1], bounds[3]]
 
-# Snap the combined bounding box to the nearest 30m grid boundary
-# Floor left/bottom, ceil right/top to ensure full coverage
-grid_left   = math.floor(min(all_bounds_x) / TARGET_RES) * TARGET_RES
-grid_bottom = math.floor(min(all_bounds_y) / TARGET_RES) * TARGET_RES
-grid_right  = math.ceil( max(all_bounds_x) / TARGET_RES) * TARGET_RES
-grid_top    = math.ceil( max(all_bounds_y) / TARGET_RES) * TARGET_RES
+grid_left    = math.floor(min(all_bounds_x) / TARGET_RES) * TARGET_RES
+grid_bottom  = math.floor(min(all_bounds_y) / TARGET_RES) * TARGET_RES
+grid_right   = math.ceil( max(all_bounds_x) / TARGET_RES) * TARGET_RES
+grid_top     = math.ceil( max(all_bounds_y) / TARGET_RES) * TARGET_RES
 
-# Build the shared affine transform (top-left origin, negative y-step)
-from affine import Affine
 SHARED_TRANSFORM = Affine(TARGET_RES, 0, grid_left, 0, -TARGET_RES, grid_top)
 SHARED_WIDTH     = int((grid_right  - grid_left) / TARGET_RES)
 SHARED_HEIGHT    = int((grid_top    - grid_bottom) / TARGET_RES)
 
-print(f"  Shared grid origin:  ({grid_left:.2f}, {grid_top:.2f})")
-print(f"  Shared grid size:    {SHARED_WIDTH} x {SHARED_HEIGHT} pixels")
+print(f"  Shared grid origin: ({grid_left:.2f}, {grid_top:.2f})")
+print(f"  Shared grid size:   {SHARED_WIDTH} x {SHARED_HEIGHT} pixels")
 
 
-def process_file(src_path, dst_path, target_crs, target_res):
-    """
-    Reproject a single raster onto the shared reference grid.
-    All files share the same transform, width, and height so that
-    pixel (row, col) refers to exactly the same geographic location
-    in every output file — eliminating inter-year misalignment.
-    """
+def process_file(src_path, dst_path, target_crs):
+    """Reproject onto the shared grid using nearest-neighbor resampling."""
     with rasterio.open(src_path) as src:
         kwargs = src.meta.copy()
         kwargs.update({
@@ -221,7 +208,6 @@ def process_file(src_path, dst_path, target_crs, target_res):
             'dtype':     'uint8',
             'compress':  'lzw'
         })
-
         with rasterio.open(dst_path, 'w', **kwargs) as dst:
             reproject(
                 source      =rasterio.band(src, 1),
@@ -232,8 +218,7 @@ def process_file(src_path, dst_path, target_crs, target_res):
             )
 
 print("\nStep 1 & 2: Reprojecting and resampling all files onto shared grid...")
-print(f"  Target CRS: {TARGET_CRS}")
-print(f"  Target resolution: {TARGET_RES}m\n")
+print(f"  Target CRS: {TARGET_CRS}  |  Resolution: {TARGET_RES}m\n")
 
 temp_dir = PROCESSED_DIR / 'temp'
 temp_dir.mkdir(exist_ok=True)
@@ -243,40 +228,28 @@ for year in YEARS:
     for state in STATES:
         src_path = get_tif_path(state, year)
         dst_path = temp_dir / f'{state}_{year}_processed.tif'
-
         if dst_path.exists():
-            print(f"    {state} — already processed, skipping")
+            print(f"    {state} — skipping (exists)")
             continue
-
-        process_file(src_path, dst_path, TARGET_CRS, TARGET_RES)
+        process_file(src_path, dst_path, TARGET_CRS)
         print(f"    {state} ✓")
 
 ###################################################################
 # %% Step 3: Mosaic
 
 def build_mosaic(year, out_path):
-    """
-    Merge all processed state rasters for a given year into one mosaic.
-    """
     paths    = [temp_dir / f'{state}_{year}_processed.tif' for state in STATES]
     datasets = [rasterio.open(p) for p in paths]
-
     mosaic, transform = rasterio.merge.merge(datasets)
-
     meta = datasets[0].meta.copy()
     meta.update({
-        'height':    mosaic.shape[1],
-        'width':     mosaic.shape[2],
-        'transform': transform,
-        'compress':  'lzw'
+        'height': mosaic.shape[1], 'width': mosaic.shape[2],
+        'transform': transform, 'compress': 'lzw'
     })
-
     with rasterio.open(out_path, 'w', **meta) as dst:
         dst.write(mosaic)
-
     for ds in datasets:
         ds.close()
-
     print(f"  Mosaic saved: {out_path}")
     return out_path
 
@@ -291,95 +264,87 @@ for year in YEARS:
     else:
         print(f"  mosaic_{year}.tif already exists, skipping")
 
+# Clean up temp files
+if temp_dir.exists() and temp_dir.is_dir():
+    shutil.rmtree(temp_dir)
+    print("  Temp files cleaned up")
+
 ###################################################################
-# %% Step 4: Compute conversion layers
-print("\nStep 4: Computing conversion layers...")
+# %% Step 4: Compute flow layers
+print("\nStep 4: Computing flow layers...")
 
 """
-Conversion logic — for each pixel, compared against 2006 baseline:
-  - Was it grassland or wetland in 2006?  (natural land)
-  - Is it corn in the target year?        (converted)
+Flow layer for each consecutive year pair (prev→curr):
+  Pixel values:
+    0 = no relevant change
+    1 = natural→corn  (conversion: was natural in prev, is corn in curr)
+    2 = corn→natural  (reversion:  was corn in prev, is natural in curr)
 
-Output pixel values:
-  0 = no change / not relevant
-  1 = converted (was natural land in 2006, now corn)
-  2 = was natural land in 2006, still natural in target year (retained)
+flow_layer_YEAR.tif represents the flows between YEAR-1 and YEAR.
+e.g. flow_layer_2008.tif = what changed between 2007 and 2008.
 """
 
-# Derive codes from CODES_OF_INTEREST once
 corn_code     = [code for code, name in CODES_OF_INTEREST.items() if name == 'Corn'][0]
 natural_codes = [code for code, name in CODES_OF_INTEREST.items() if name != 'Corn']
+pixel_area_ha = (TARGET_RES ** 2) / 10_000
 
-pixel_area_ha = (TARGET_RES ** 2) / 10_000   # 30m pixel = 0.09 ha
+flow_paths = {}
 
-# Always compare against 2006 as the baseline
-mosaic_baseline_path = mosaic_paths[2006]
+for i, year in enumerate(FLOW_YEARS, 1):
+    prev_year  = YEARS[i - 1]
+    flow_path  = PROCESSED_DIR / f'flow_layer_{year}.tif'
+    flow_paths[year] = flow_path
 
-conversion_paths = {}
-
-for year in YEARS:
-    conversion_path = PROCESSED_DIR / f'conversion_layer_{year}.tif'
-    conversion_paths[year] = conversion_path
-
-    if conversion_path.exists():
-        print(f"  conversion_layer_{year}.tif already exists, skipping")
+    if flow_path.exists():
+        print(f"  flow_layer_{year}.tif already exists, skipping")
         continue
 
-    print(f"  Computing {year} vs 2006 baseline...")
+    print(f"  Computing {prev_year}→{year}...")
 
-    with rasterio.open(mosaic_baseline_path) as src_baseline, \
-         rasterio.open(mosaic_paths[year]) as src_year:
+    with rasterio.open(mosaic_paths[prev_year]) as src_prev, \
+         rasterio.open(mosaic_paths[year])      as src_curr:
 
-        if src_baseline.width != src_year.width or src_baseline.height != src_year.height:
-            print(f"    Note: dimensions differ — resampling {year} to match 2006")
-
-        meta = src_baseline.meta.copy()
+        meta = src_prev.meta.copy()
         meta.update({'compress': 'lzw', 'dtype': 'uint8'})
 
-        with rasterio.open(conversion_path, 'w', **meta) as dst:
+        with rasterio.open(flow_path, 'w', **meta) as dst:
             chunk_size = 2048
 
-            for row_off in range(0, src_baseline.height, chunk_size):
-                actual_height = min(chunk_size, src_baseline.height - row_off)
+            for row_off in range(0, src_prev.height, chunk_size):
+                actual_height = min(chunk_size, src_prev.height - row_off)
                 window = rasterio.windows.Window(
-                    col_off=0,
-                    row_off=row_off,
-                    width=src_baseline.width,
-                    height=actual_height
+                    col_off=0, row_off=row_off,
+                    width=src_prev.width, height=actual_height
                 )
 
-                data_baseline = src_baseline.read(1, window=window)
-                data_year     = src_year.read(
-                    1,
-                    window=window,
-                    out_shape=(actual_height, src_baseline.width),
+                prev_chunk = src_prev.read(1, window=window)
+                curr_chunk = src_curr.read(
+                    1, window=window,
+                    out_shape=(actual_height, src_prev.width),
                     resampling=Resampling.nearest
                 )
 
-                was_natural = np.isin(data_baseline, natural_codes)
-                is_corn_now = (data_year == corn_code)
+                was_natural = np.isin(prev_chunk, natural_codes)
+                was_corn    = (prev_chunk == corn_code)
+                is_natural  = np.isin(curr_chunk, natural_codes)
+                is_corn     = (curr_chunk == corn_code)
 
-                result = np.zeros_like(data_baseline, dtype=np.uint8)
-                result[was_natural & is_corn_now]  = 1   # converted to corn
-                result[was_natural & ~is_corn_now] = 2   # natural land retained
+                result = np.zeros_like(prev_chunk, dtype=np.uint8)
+                result[was_natural & is_corn]    = 1   # conversion
+                result[was_corn    & is_natural] = 2   # reversion
 
                 dst.write(result, 1, window=window)
 
-                pct = min(100, int((row_off + actual_height) / src_baseline.height * 100))
+                pct = min(100, int((row_off + actual_height) / src_prev.height * 100))
                 print(f"    Processing... {pct}%", end='\r')
 
-    print(f"\n  conversion_layer_{year}.tif saved")
+    print(f"\n  flow_layer_{year}.tif saved")
 
-# Delete temp files now that all mosaics and conversion layers are saved
-if temp_dir.exists() and temp_dir.is_dir():
-    shutil.rmtree(temp_dir)
-    print("\n  Temp files cleaned up")
-
-# Quick stats for 2012 (the final year) — chunked to avoid memory issues
-print("\n  Stats for 2012 vs 2006:")
-converted_pixels = 0
-retained_pixels  = 0
-with rasterio.open(conversion_paths[2012]) as src:
+# Quick stats for most recent interval (2011→2012)
+print("\n  Stats for 2011→2012:")
+converted_px = 0
+reverted_px  = 0
+with rasterio.open(flow_paths[2012]) as src:
     for row_off in range(0, src.height, 2048):
         actual_height = min(2048, src.height - row_off)
         window = rasterio.windows.Window(
@@ -387,41 +352,34 @@ with rasterio.open(conversion_paths[2012]) as src:
             width=src.width, height=actual_height
         )
         chunk = src.read(1, window=window)
-        converted_pixels += int(np.sum(chunk == 1))
-        retained_pixels  += int(np.sum(chunk == 2))
+        converted_px += int(np.sum(chunk == 1))
+        reverted_px  += int(np.sum(chunk == 2))
         del chunk
 
-converted_ha = converted_pixels * pixel_area_ha
-retained_ha  = retained_pixels  * pixel_area_ha
-
-print(f"    Natural land converted to corn: {converted_ha:,.0f} hectares")
-print(f"    Natural land retained:          {retained_ha:,.0f} hectares")
-print(f"    Conversion rate:                {converted_ha/(converted_ha+retained_ha)*100:.1f}%")
+converted_ha = converted_px * pixel_area_ha
+reverted_ha  = reverted_px  * pixel_area_ha
+print(f"    Natural→Corn: {converted_ha:,.0f} ha")
+print(f"    Corn→Natural: {reverted_ha:,.0f} ha")
+print(f"    Net loss:     {converted_ha - reverted_ha:,.0f} ha")
 
 ###################################################################
-# %% Step 5: Pixel-level map (2006 vs 2012 only)
-print("\nStep 5: Generating pixel-level map (2006 vs 2012)...")
+# %% Step 5: Pixel-level flow map (2011→2012 interval)
+print("\nStep 5: Generating pixel-level flow map (2011→2012)...")
 
 PLOT_DOWNSAMPLE = 5
 
-with rasterio.open(conversion_paths[2012]) as src:
+with rasterio.open(flow_paths[2012]) as src:
     data = src.read(
         1,
-        out_shape=(
-            src.height // PLOT_DOWNSAMPLE,
-            src.width  // PLOT_DOWNSAMPLE
-        ),
+        out_shape=(src.height // PLOT_DOWNSAMPLE, src.width // PLOT_DOWNSAMPLE),
         resampling=Resampling.nearest
     )
-    extent = [
-        src.bounds.left, src.bounds.right,
-        src.bounds.bottom, src.bounds.top
-    ]
+    extent = [src.bounds.left, src.bounds.right, src.bounds.bottom, src.bounds.top]
 
 color_map = {
-    0: (1, 1, 1, 0),
-    1: (0.85, 0.18, 0.18, 0.9),
-    2: (0.55, 0.75, 0.45, 0.5),
+    0: (1, 1, 1, 0),            # transparent
+    1: (0.85, 0.18, 0.18, 0.9), # red — natural→corn
+    2: (0.20, 0.50, 0.80, 0.7), # blue — corn→natural
 }
 
 rgb = np.zeros((*data.shape, 4), dtype=float)
@@ -438,32 +396,27 @@ state_shp  = state_shp.to_crs(TARGET_CRS)
 state_shp.boundary.plot(ax=ax, color='#333333', linewidth=0.8)
 
 legend_patches = [
-    mpatches.Patch(color=(0.85, 0.18, 0.18), label='Converted to corn (2006→2012)'),
-    mpatches.Patch(color=(0.55, 0.75, 0.45), label='Natural land retained'),
+    mpatches.Patch(color=(0.85, 0.18, 0.18), label='Natural→Corn (2011→2012)'),
+    mpatches.Patch(color=(0.20, 0.50, 0.80), label='Corn→Natural (2011→2012)'),
 ]
 ax.legend(handles=legend_patches, loc='lower left', fontsize=10, framealpha=0.9)
-
-ax.set_title(
-    'Grassland & Wetland Converted to Corn, 2006–2012',
-    fontsize=16, fontweight='bold', pad=12
-)
+ax.set_title('Grassland & Wetland Land Flows, 2011→2012',
+             fontsize=16, fontweight='bold', pad=12)
 ax.set_xlabel(
-    f'Red pixels = land that was grassland or wetland in 2006 and became corn by 2012\n'
-    f'Total converted: {converted_ha:,.0f} hectares  |  '
-    f'Conversion rate: {converted_ha/(converted_ha+retained_ha)*100:.1f}% of natural land lost',
+    f'Red = natural land converted to corn  |  '
+    f'Blue = corn reverted to natural land  |  '
+    f'Net loss: {converted_ha - reverted_ha:,.0f} ha',
     fontsize=9, color='#444444'
 )
 ax.axis('off')
-
 plt.tight_layout()
-map_path = VIZ_DIR / 'cdl_conversion_map.png'
+map_path = VIZ_DIR / 'cdl_flow_map.png'
 plt.savefig(map_path, dpi=150, bbox_inches='tight')
 print(f"  Map saved to {map_path}")
-# plt.show()
 
 ###################################################################
-# %% Step 6: County choropleth (2006 vs 2012 only)
-print("\nStep 6: Generating county-level choropleth (2006 vs 2012)...")
+# %% Step 6: County-level net change choropleth (2011→2012)
+print("\nStep 6: Generating county-level net change choropleth (2011→2012)...")
 
 print("  Loading county shapefile...")
 counties = gpd.read_file(RAW_DIR / 'tl_2012_us_county.zip')
@@ -472,43 +425,53 @@ counties = counties.to_crs(TARGET_CRS)
 counties['FIPS'] = counties['STATEFP'] + counties['COUNTYFP']
 print(f"  Counties loaded: {len(counties)}")
 
-print("  Running zonal statistics (this may take a few minutes)...")
-stats = zonal_stats(
-    counties,
-    str(conversion_paths[2012]),
-    categorical=True,
-    nodata=0
+# Zonal stats on flow layer for conversions (1) and reversions (2)
+print("  Running zonal statistics on flow layer...")
+stats_flow = zonal_stats(
+    counties, str(flow_paths[2012]), categorical=True, nodata=0
+)
+
+# Zonal stats on prev year mosaic for natural land denominator
+print("  Running zonal statistics on 2011 mosaic for natural land denominator...")
+stats_nat = zonal_stats(
+    counties, str(mosaic_paths[2011]), categorical=True, nodata=0
 )
 print("  Done.")
 
-counties['converted_pixels'] = [s.get(1, 0) for s in stats]
-counties['retained_pixels']  = [s.get(2, 0) for s in stats]
-counties['total_natural']    = counties['converted_pixels'] + counties['retained_pixels']
+counties['converted_pixels']     = [s.get(1, 0) for s in stats_flow]
+counties['reverted_pixels']      = [s.get(2, 0) for s in stats_flow]
+counties['net_pixels']           = counties['converted_pixels'] - counties['reverted_pixels']
+counties['natural_start_pixels'] = [
+    sum(s.get(c, 0) for c in natural_codes) for s in stats_nat
+]
 
-MIN_NATURAL_PIXELS = 100
-counties['conversion_rate'] = np.where(
-    counties['total_natural'] >= MIN_NATURAL_PIXELS,
-    counties['converted_pixels'] / counties['total_natural'] * 100,
+# Net rate as % of natural land at start of interval
+counties['net_rate'] = np.where(
+    counties['natural_start_pixels'] >= MIN_NATURAL_PIXELS,
+    counties['net_pixels'] / counties['natural_start_pixels'] * 100,
     np.nan
 )
 
 counties['converted_ha'] = counties['converted_pixels'] * pixel_area_ha
-counties['retained_ha']  = counties['retained_pixels']  * pixel_area_ha
+counties['reverted_ha']  = counties['reverted_pixels']  * pixel_area_ha
+counties['net_ha']       = counties['net_pixels']       * pixel_area_ha
 
-print(f"\n  County conversion rate summary:")
-print(counties['conversion_rate'].describe().round(2))
+print(f"\n  Net rate summary (% of natural land):")
+print(counties['net_rate'].describe().round(2))
 
+# Diverging colormap: red = net loss, blue = net gain, white = zero
 fig, ax = plt.subplots(1, 1, figsize=(14, 10))
+vmax = 10   # cap at ±10% for readability
 
-counties[counties['conversion_rate'].isna()].plot(
+counties[counties['net_rate'].isna()].plot(
     ax=ax, color='#eeeeee', edgecolor='white', linewidth=0.2
 )
-counties[counties['conversion_rate'].notna()].plot(
+counties[counties['net_rate'].notna()].plot(
     ax=ax,
-    column='conversion_rate',
-    cmap='YlOrRd',
-    vmin=0,
-    vmax=30,
+    column='net_rate',
+    cmap='RdBu_r',   # red = positive (loss), blue = negative (gain)
+    vmin=-vmax,
+    vmax=vmax,
     edgecolor='white',
     linewidth=0.2,
     legend=False
@@ -517,86 +480,87 @@ counties[counties['conversion_rate'].notna()].plot(
 state_boundaries = counties.dissolve(by='STATEFP')
 state_boundaries.boundary.plot(ax=ax, color='#333333', linewidth=0.8)
 
-sm = plt.cm.ScalarMappable(cmap='YlOrRd', norm=mcolors.Normalize(vmin=0, vmax=30))
+sm = plt.cm.ScalarMappable(
+    cmap='RdBu_r',
+    norm=mcolors.TwoSlopeNorm(vmin=-vmax, vcenter=0, vmax=vmax)
+)
 sm.set_array([])
 cbar = fig.colorbar(sm, ax=ax, orientation='horizontal',
                     fraction=0.03, pad=0.02, aspect=40)
-cbar.set_label('% of Natural Land (Grassland/Wetland) Converted to Corn', fontsize=10)
-cbar.set_ticks([0, 5, 10, 15, 20, 25, 30])
-cbar.set_ticklabels(['0%', '5%', '10%', '15%', '20%', '25%', '30%'])
+cbar.set_label('Net change in natural land as % of county natural land at start (2011)',
+               fontsize=9)
+cbar.set_ticks([-vmax, -5, 0, 5, vmax])
+cbar.set_ticklabels([f'−{vmax}% (gain)', '−5%', '0', '+5%', f'+{vmax}% (loss)'])
 
 no_data_patch = mpatches.Patch(color='#eeeeee', label='No significant natural land')
 ax.legend(handles=[no_data_patch], loc='lower left', fontsize=9, framealpha=0.9)
-
-ax.set_title(
-    'Grassland & Wetland Converted to Corn by County, 2006–2012',
-    fontsize=16, fontweight='bold', pad=12
-)
-
-total_converted_ha = counties['converted_ha'].sum()
-ax.set_xlabel(
-    f'Total natural land converted across Corn Belt: {total_converted_ha:,.0f} hectares  '
-    f'({total_converted_ha / 1e6:.1f} million ha)',
-    fontsize=9, color='#444444'
-)
+ax.set_title('Net Natural Land Change by County, 2011→2012\n'
+             'Red = net loss (more conversion than reversion)  |  '
+             'Blue = net gain (more reversion than conversion)',
+             fontsize=13, fontweight='bold', pad=12)
 ax.axis('off')
-
 plt.tight_layout()
-map_path = VIZ_DIR / 'cdl_conversion_county_map.png'
+map_path = VIZ_DIR / 'cdl_flow_county_map.png'
 plt.savefig(map_path, dpi=150, bbox_inches='tight')
 print(f"  Map saved to {map_path}")
-# plt.show()
 
 ###################################################################
-# %% Step 7: Export one GeoJSON per year for Leaflet time slider
+# %% Step 7: Export one GeoJSON per flow year for Leaflet time slider
 print("\nStep 7: Exporting GeoJSON files for Leaflet time slider...")
 
-# Use the county geometries already loaded in Step 6
-geojson_cols = ['FIPS', 'NAME', 'STATEFP', 'geometry']
+geojson_cols  = ['FIPS', 'NAME', 'STATEFP', 'geometry']
 counties_base = counties[geojson_cols].copy()
 
-for year in YEARS:
-    print(f"  Processing {year}...")
+for i, year in enumerate(FLOW_YEARS, 1):
+    prev_year = YEARS[i - 1]
+    print(f"  Processing {prev_year}→{year}...")
 
-    stats_year = zonal_stats(
-        counties,
-        str(conversion_paths[year]),
-        categorical=True,
-        nodata=0
+    # Flow layer: conversions (1) and reversions (2)
+    stats_flow_yr = zonal_stats(
+        counties, str(flow_paths[year]), categorical=True, nodata=0
+    )
+
+    # Previous year mosaic: natural land denominator
+    stats_nat_yr = zonal_stats(
+        counties, str(mosaic_paths[prev_year]), categorical=True, nodata=0
     )
 
     counties_year = counties_base.copy()
-    counties_year['converted_pixels'] = [s.get(1, 0) for s in stats_year]
-    counties_year['retained_pixels']  = [s.get(2, 0) for s in stats_year]
-    counties_year['total_natural']    = (counties_year['converted_pixels'] +
-                                         counties_year['retained_pixels'])
+    counties_year['converted_pixels']     = [s.get(1, 0) for s in stats_flow_yr]
+    counties_year['reverted_pixels']      = [s.get(2, 0) for s in stats_flow_yr]
+    counties_year['net_pixels']           = (counties_year['converted_pixels'] -
+                                              counties_year['reverted_pixels'])
+    counties_year['natural_start_pixels'] = [
+        sum(s.get(c, 0) for c in natural_codes) for s in stats_nat_yr
+    ]
 
-    counties_year['conversion_rate'] = np.where(
-        counties_year['total_natural'] >= MIN_NATURAL_PIXELS,
-        counties_year['converted_pixels'] / counties_year['total_natural'] * 100,
+    counties_year['net_rate'] = np.where(
+        counties_year['natural_start_pixels'] >= MIN_NATURAL_PIXELS,
+        counties_year['net_pixels'] / counties_year['natural_start_pixels'] * 100,
         np.nan
     )
 
     counties_year['converted_ha'] = counties_year['converted_pixels'] * pixel_area_ha
-    counties_year['retained_ha']  = counties_year['retained_pixels']  * pixel_area_ha
+    counties_year['reverted_ha']  = counties_year['reverted_pixels']  * pixel_area_ha
+    counties_year['net_ha']       = counties_year['net_pixels']       * pixel_area_ha
 
     # Round for file size
-    counties_year['conversion_rate'] = counties_year['conversion_rate'].round(2)
-    counties_year['converted_ha']    = counties_year['converted_ha'].round(1)
-    counties_year['retained_ha']     = counties_year['retained_ha'].round(1)
+    counties_year['net_rate']     = counties_year['net_rate'].round(2)
+    counties_year['converted_ha'] = counties_year['converted_ha'].round(1)
+    counties_year['reverted_ha']  = counties_year['reverted_ha'].round(1)
+    counties_year['net_ha']       = counties_year['net_ha'].round(1)
 
     # Reproject to WGS84 for Leaflet
     counties_year = counties_year.to_crs('EPSG:4326')
 
     # Replace NaN with None for clean JSON serialization
-    counties_year['conversion_rate'] = counties_year['conversion_rate'].where(
-        counties_year['conversion_rate'].notna(), other=None
+    counties_year['net_rate'] = counties_year['net_rate'].where(
+        counties_year['net_rate'].notna(), other=None
     )
 
     # Simplify geometries
     counties_year['geometry'] = counties_year['geometry'].simplify(
-        tolerance=0.01,
-        preserve_topology=True
+        tolerance=0.01, preserve_topology=True
     )
 
     output_path = VIZ_DIR / f'corn_belt_{year}.geojson'
@@ -607,5 +571,5 @@ for year in YEARS:
 
 print("\nAll GeoJSON files exported.")
 print("Files ready for Leaflet time slider:")
-for year in YEARS:
-    print(f"  corn_belt_{year}.geojson")
+for year in FLOW_YEARS:
+    print(f"  corn_belt_{year}.geojson  ({YEARS[FLOW_YEARS.index(year)]}→{year})")

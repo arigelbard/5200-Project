@@ -282,7 +282,7 @@
 <body>
 
   <header>
-    <h1>Grassland &amp; Wetland Converted to Corn by County in the Corn Belt</h1>
+    <h1>Year-over-Year Natural Land Flows by County</h1>
     <p id="map-subtitle">Loading…</p>
   </header>
 
@@ -292,37 +292,46 @@
 
   <script>
     // ── Configuration ────────────────────────────────────────────────────────
-    const YEARS = [2006, 2007, 2008, 2009, 2010, 2011, 2012];
+    const YEARS = [2007, 2008, 2009, 2010, 2011, 2012];
 
     // Update this if your GeoJSON files live in a subfolder e.g. 'data/corn_belt_2006.geojson'
     const geojsonPath = year => `corn_belt_${year}.geojson`;
 
-    const BREAKS = [0, 5, 10, 15, 20, 25, 30];
-    const COLORS = [
-      '#fff7ec',  // 0–5%
-      '#fee8c8',  // 5–10%
-      '#fdd49e',  // 10–15%
-      '#fdbb84',  // 15–20%
-      '#fc8d59',  // 20–25%
-      '#ef6548',  // 25–30%
-      '#990000',  // ≥30%
-    ];
     const NO_DATA_COLOR = '#2a2d3a';
 
-    // ── Color helpers ─────────────────────────────────────────────────────────
-    function getColor(rate) {
-      if (rate === null || rate === undefined) return NO_DATA_COLOR;
-      for (let i = BREAKS.length - 1; i >= 0; i--) {
-        if (rate >= BREAKS[i]) return COLORS[i];
+    // ── Color scale ───────────────────────────────────────────────────────────
+    // Diverging scale centered at 0 (net_rate as % of natural land at start):
+    //   Red   = net loss (more natural→corn than corn→natural)
+    //   White = balanced
+    //   Blue  = net gain (more corn→natural than natural→corn)
+    // Capped at ±10%
+
+    function getColor(netRate) {
+      if (netRate === null || netRate === undefined) return NO_DATA_COLOR;
+      const v = Math.max(-10, Math.min(10, netRate));
+      if (v > 0) {
+        // Net loss — white to red
+        const t = v / 10;
+        const r = 255;
+        const g = Math.round(255 * (1 - t * 0.82));
+        const b = Math.round(255 * (1 - t * 0.87));
+        return `rgb(${r},${g},${b})`;
+      } else if (v < 0) {
+        // Net gain — white to blue
+        const t = -v / 10;
+        const r = Math.round(255 * (1 - t * 0.80));
+        const g = Math.round(255 * (1 - t * 0.50));
+        const b = 255;
+        return `rgb(${r},${g},${b})`;
       }
-      return COLORS[0];
+      return '#ffffff';
     }
 
     function styleFeature(feature) {
-      const rate = feature.properties.conversion_rate;
+      const netRate = feature.properties.net_rate;
       return {
-        fillColor:   getColor(rate),
-        fillOpacity: rate === null ? 0.4 : 0.85,
+        fillColor:   getColor(netRate),
+        fillOpacity: netRate === null ? 0.3 : 0.85,
         color:       '#1a1d27',
         weight:      0.5,
         opacity:     1,
@@ -356,24 +365,33 @@
       const stateName = STATE_NAMES[props.STATEFP] || '';
       const location  = stateName ? `${props.NAME} County, ${stateName}` : `${props.NAME} County`;
 
-      if (props.conversion_rate === null || props.conversion_rate === undefined) {
+      if (props.net_rate === null || props.net_rate === undefined) {
         return `
           <div class="tooltip-county">${location}</div>
           <div class="tooltip-no-data">No significant natural land</div>
         `;
       }
-      const rate      = props.conversion_rate.toFixed(1);
-      const converted = props.converted_ha
+      const netRate   = props.net_rate >= 0
+        ? `+${props.net_rate.toFixed(1)}%`
+        : `${props.net_rate.toFixed(1)}%`;
+      const converted = props.converted_ha !== null
         ? props.converted_ha.toLocaleString(undefined, { maximumFractionDigits: 0 })
         : '—';
-      const retained  = props.retained_ha
-        ? props.retained_ha.toLocaleString(undefined, { maximumFractionDigits: 0 })
+      const reverted  = props.reverted_ha !== null
+        ? props.reverted_ha.toLocaleString(undefined, { maximumFractionDigits: 0 })
         : '—';
+      const net       = props.net_ha !== null
+        ? (props.net_ha >= 0 ? '+' : '') +
+          props.net_ha.toLocaleString(undefined, { maximumFractionDigits: 0 })
+        : '—';
+      const netColor  = props.net_ha >= 0 ? '#c0392b' : '#2a6496';
+
       return `
         <div class="tooltip-county">${location}</div>
-        <div class="tooltip-row"><span>Conversion rate</span><span>${rate}%</span></div>
-        <div class="tooltip-row"><span>Converted (vs 2006)</span><span>${converted} ha</span></div>
-        <div class="tooltip-row"><span>Natural retained</span><span>${retained} ha</span></div>
+        <div class="tooltip-row"><span>Net change</span>
+          <span style="color:${netColor}">${netRate} &nbsp;(${net} ha)</span></div>
+        <div class="tooltip-row"><span>Natural→Corn</span><span>${converted} ha</span></div>
+        <div class="tooltip-row"><span>Corn→Natural</span><span>${reverted} ha</span></div>
       `;
     }
 
@@ -406,20 +424,24 @@
     // ── Update header subtitle with stats ─────────────────────────────────────
     function updateStats(data, year) {
       let totalConverted = 0;
-      let totalRetained  = 0;
+      let totalReverted  = 0;
 
       data.features.forEach(f => {
         if (f.properties.converted_ha) totalConverted += f.properties.converted_ha;
-        if (f.properties.retained_ha)  totalRetained  += f.properties.retained_ha;
+        if (f.properties.reverted_ha)  totalReverted  += f.properties.reverted_ha;
       });
 
-      const pct        = (totalConverted / (totalConverted + totalRetained) * 100).toFixed(1);
-      const convertedM = (totalConverted / 1e6).toFixed(2);
+      const netHa    = totalConverted - totalReverted;
+      const netM     = (Math.abs(netHa) / 1e6).toFixed(2);
+      const sign     = netHa >= 0 ? '+' : '−';
+      const color    = netHa >= 0 ? 'var(--accent)' : '#4caf96';
+      const prevYear = year - 1;
 
-      document.getElementById('map-subtitle').innerHTML = year === 2006
-        ? `<em style="color:var(--muted)">Baseline year — no conversion recorded</em>`
-        : `<strong style="color:var(--accent)">${convertedM}M hectares converted</strong>`
-          + ` &nbsp;·&nbsp; ${pct}% of natural land lost since 2006`;
+      document.getElementById('map-subtitle').innerHTML =
+        `${prevYear}→${year} &nbsp;·&nbsp; `
+        + `<strong style="color:${color}">${sign}${netM}M ha net change</strong>`
+        + ` &nbsp;·&nbsp; ${(totalConverted/1e6).toFixed(2)}M converted`
+        + ` &nbsp;·&nbsp; ${(totalReverted/1e6).toFixed(2)}M reverted`;
     }
 
     // ── Render a year's data ──────────────────────────────────────────────────
@@ -494,23 +516,34 @@
     // ── Legend ────────────────────────────────────────────────────────────────
     const legendControl = L.control({ position: 'bottomright' });
     legendControl.onAdd = function() {
-      const div  = L.DomUtil.create('div', 'legend');
-      const rows = BREAKS.map((brk, i) => {
-        const label = i < BREAKS.length - 1
-          ? `${BREAKS[i]}–${BREAKS[i+1]}%`
-          : `≥${BREAKS[i]}%`;
-        return `
-          <div class="legend-bar">
-            <div class="legend-swatch" style="background:${COLORS[i]}"></div>
-            <span>${label}</span>
-          </div>`;
-      }).join('');
+      const div = L.DomUtil.create('div', 'legend');
 
       div.innerHTML = `
-        <div class="legend-title">% Natural Land Converted</div>
-        <div class="legend-scale">${rows}</div>
+        <div class="legend-title">Net Natural Land Change</div>
+        <div class="legend-scale">
+          <div class="legend-bar">
+            <div class="legend-swatch" style="background:rgb(46,128,255)"></div>
+            <span>≤ −10% (net gain)</span>
+          </div>
+          <div class="legend-bar">
+            <div class="legend-swatch" style="background:rgb(153,204,255)"></div>
+            <span>−5%</span>
+          </div>
+          <div class="legend-bar">
+            <div class="legend-swatch" style="background:#ffffff;border:1px solid #555"></div>
+            <span>0% (balanced)</span>
+          </div>
+          <div class="legend-bar">
+            <div class="legend-swatch" style="background:rgb(255,204,204)"></div>
+            <span>+5%</span>
+          </div>
+          <div class="legend-bar">
+            <div class="legend-swatch" style="background:rgb(255,46,33)"></div>
+            <span>≥ +10% (net loss)</span>
+          </div>
+        </div>
         <div class="legend-no-data">
-          <div class="legend-swatch" style="background:${NO_DATA_COLOR};opacity:0.4;border:1px solid #444"></div>
+          <div class="legend-swatch" style="background:${NO_DATA_COLOR}"></div>
           <span>No significant natural land</span>
         </div>
       `;

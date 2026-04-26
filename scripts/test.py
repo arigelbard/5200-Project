@@ -8,70 +8,91 @@ PROCESSED_DIR = Path('../data/processed-data')
 YEARS         = [2006, 2007, 2008, 2009, 2010, 2011, 2012]
 PIXEL_AREA_HA = (30 ** 2) / 10_000
 CHUNK_SIZE    = 2048
-
-def count_pixels(path, value):
-    """Count pixels with a given value in a raster, using chunks."""
-    total = 0
-    with rasterio.open(path) as src:
-        for row_off in range(0, src.height, CHUNK_SIZE):
-            actual_height = min(CHUNK_SIZE, src.height - row_off)
-            window = rasterio.windows.Window(
-                col_off=0, row_off=row_off,
-                width=src.width, height=actual_height
-            )
-            chunk = src.read(1, window=window)
-            total += int(np.sum(chunk == value))
-            del chunk
-    return total
-
-# ── Baseline: total natural land in 2006 ──────────────────────────────────────
-# conversion_layer_2006 compares 2006 against itself so all natural pixels = 2
-print("Computing 2006 natural land baseline...")
-baseline_natural_px = count_pixels(PROCESSED_DIR / 'conversion_layer_2006.tif', 2)
-baseline_nat_ha     = baseline_natural_px * PIXEL_AREA_HA
-print(f"  Total natural land in 2006: {baseline_nat_ha:,.0f} ha")
-
-# ── Per-year cumulative conversions ───────────────────────────────────────────
-# conversion_layer_YEAR counts value-1 = all pixels that were natural in 2006
-# and are corn in YEAR. This is the cumulative unique conversion count.
-print("\nCounting cumulative conversions per year...")
-cumulative = {}
-for year in YEARS:
-    px = count_pixels(PROCESSED_DIR / f'conversion_layer_{year}.tif', 1)
-    cumulative[year] = px * PIXEL_AREA_HA
-    print(f"  {year}: {cumulative[year]:,.0f} ha converted since 2006")
-
-# ── Build interval table ──────────────────────────────────────────────────────
-# Natural at start of interval = baseline - cumulative converted through prev year
-# Converted in interval        = cumulative[year] - cumulative[prev_year]
-# % converted                  = converted_in_interval / natural_at_start
-
-print("\n── Incremental natural land converted to corn by interval ──\n")
-print(f"{'Interval':<14} {'Converted (ha)':>16} {'Natural at Start (ha)':>22} "
-      f"{'% Converted':>12} {'Cumulative (ha)':>16}")
-print("-" * 84)
+CORN_CODE     = 1
+NATURAL_CODES = [176, 190, 195]
 
 rows = []
+
 for i, year in enumerate(YEARS[1:], 1):
-    prev_year        = YEARS[i - 1]
-    converted_ha     = cumulative[year] - cumulative[prev_year]
-    natural_start_ha = baseline_nat_ha  - cumulative[prev_year]
-    pct              = converted_ha / natural_start_ha * 100 if natural_start_ha > 0 else 0
+    prev_year = YEARS[i - 1]
+    prev_path = PROCESSED_DIR / f'mosaic_{prev_year}.tif'
+    curr_path = PROCESSED_DIR / f'mosaic_{year}.tif'
+
+    new_conversions   = 0   # natural → corn
+    reversions        = 0   # corn → natural
+    remaining_natural = 0   # natural pixels at start of interval
+    corn_at_start     = 0   # corn pixels at start of interval
+
+    with rasterio.open(prev_path) as prev_src, \
+         rasterio.open(curr_path) as curr_src:
+
+        for row_off in range(0, prev_src.height, CHUNK_SIZE):
+            actual_height = min(CHUNK_SIZE, prev_src.height - row_off)
+            window = rasterio.windows.Window(
+                col_off=0, row_off=row_off,
+                width=prev_src.width, height=actual_height
+            )
+
+            prev_chunk = prev_src.read(1, window=window)
+            curr_chunk = curr_src.read(
+                1, window=window,
+                out_shape=(actual_height, prev_src.width),
+                resampling=rasterio.enums.Resampling.nearest
+            )
+
+            was_natural = np.isin(prev_chunk, NATURAL_CODES)
+            was_corn    = (prev_chunk == CORN_CODE)
+            is_natural  = np.isin(curr_chunk, NATURAL_CODES)
+            is_corn     = (curr_chunk == CORN_CODE)
+
+            # Natural → corn (conversion)
+            new_conversions   += int(np.sum(was_natural & is_corn))
+            # Corn → natural (reversion)
+            reversions        += int(np.sum(was_corn & is_natural))
+            # Natural land at start of interval
+            remaining_natural += int(np.sum(was_natural))
+            # Corn at start of interval (denominator for reversion %)
+            corn_at_start     += int(np.sum(was_corn))
+
+            del prev_chunk, curr_chunk
+
+    converted_ha     = new_conversions * PIXEL_AREA_HA
+    reverted_ha      = reversions      * PIXEL_AREA_HA
+    nat_start_ha     = remaining_natural * PIXEL_AREA_HA
+    corn_start_ha    = corn_at_start     * PIXEL_AREA_HA
+    net_ha           = converted_ha - reverted_ha
+
+    pct_converted = converted_ha / nat_start_ha  * 100 if nat_start_ha  > 0 else 0
+    pct_reverted  = reverted_ha  / corn_start_ha * 100 if corn_start_ha > 0 else 0
 
     rows.append({
-        'interval':          f'{prev_year}→{year}',
-        'converted_ha':      converted_ha,
-        'natural_start_ha':  natural_start_ha,
-        'pct':               pct,
-        'cumulative_ha':     cumulative[year],
+        'interval':       f'{prev_year}→{year}',
+        'nat_start_ha':   nat_start_ha,
+        'corn_start_ha':  corn_start_ha,
+        'converted_ha':   converted_ha,
+        'pct_converted':  pct_converted,
+        'reverted_ha':    reverted_ha,
+        'pct_reverted':   pct_reverted,
+        'net_ha':         net_ha,
     })
 
-    print(f"{f'{prev_year}→{year}':<14} {converted_ha:>16,.0f} {natural_start_ha:>22,.0f} "
-          f"{pct:>11.2f}% {cumulative[year]:>16,.0f}")
+    print(f"  {prev_year}→{year}: "
+          f"converted {converted_ha:,.0f} ha, "
+          f"reverted {reverted_ha:,.0f} ha, "
+          f"net {net_ha:,.0f} ha")
 
 df = pd.DataFrame(rows)
-print("-" * 84)
-print(f"{'Total':<14} {df['converted_ha'].sum():>16,.0f}")
-print(f"\nBaseline natural land (2006):  {baseline_nat_ha:,.0f} ha")
-print(f"Total converted by 2012:       {cumulative[2012]:,.0f} ha  "
-      f"({cumulative[2012] / baseline_nat_ha * 100:.1f}% of 2006 natural land)")
+
+print("\n── Year-over-year natural land flows ──\n")
+print(f"{'Interval':<14} {'Nat→Corn (ha)':>14} {'% of Nat':>10} "
+      f"{'Corn→Nat (ha)':>14} {'% of Corn':>10} {'Net (ha)':>12}")
+print("-" * 78)
+for _, r in df.iterrows():
+    print(f"{r['interval']:<14} "
+          f"{r['converted_ha']:>14,.0f} {r['pct_converted']:>9.2f}% "
+          f"{r['reverted_ha']:>14,.0f} {r['pct_reverted']:>9.2f}% "
+          f"{r['net_ha']:>12,.0f}")
+print("-" * 78)
+print(f"{'Total':<14} {df['converted_ha'].sum():>14,.0f} {'':>10} "
+      f"{df['reverted_ha'].sum():>14,.0f} {'':>10} "
+      f"{df['net_ha'].sum():>12,.0f}")
