@@ -158,27 +158,66 @@ if rows:
 ###################################################################
 # %% Step 1 & 2: Reproject and resample
 
+# ── Compute a shared reference grid from the full Corn Belt extent ────────────
+# The root cause of inter-year pixel misalignment is that each file's
+# calculate_default_transform() produces a slightly different origin.
+# Fix: compute the combined bounding box of ALL source files across ALL years,
+# then snap it to a clean 30m grid. Every file is reprojected onto this
+# identical grid, guaranteeing pixel-perfect alignment.
+
+print("\nComputing shared reference grid from all source files...")
+
+import math
+from rasterio.crs import CRS
+
+target_crs_obj = CRS.from_string(TARGET_CRS)
+
+all_bounds_x = []
+all_bounds_y = []
+
+for year in YEARS:
+    for state in STATES:
+        src_path = get_tif_path(state, year)
+        if not src_path.exists():
+            continue
+        with rasterio.open(src_path) as src:
+            # Reproject bounds to target CRS
+            from rasterio.warp import transform_bounds
+            bounds = transform_bounds(src.crs, target_crs_obj, *src.bounds)
+            all_bounds_x += [bounds[0], bounds[2]]
+            all_bounds_y += [bounds[1], bounds[3]]
+
+# Snap the combined bounding box to the nearest 30m grid boundary
+# Floor left/bottom, ceil right/top to ensure full coverage
+grid_left   = math.floor(min(all_bounds_x) / TARGET_RES) * TARGET_RES
+grid_bottom = math.floor(min(all_bounds_y) / TARGET_RES) * TARGET_RES
+grid_right  = math.ceil( max(all_bounds_x) / TARGET_RES) * TARGET_RES
+grid_top    = math.ceil( max(all_bounds_y) / TARGET_RES) * TARGET_RES
+
+# Build the shared affine transform (top-left origin, negative y-step)
+from affine import Affine
+SHARED_TRANSFORM = Affine(TARGET_RES, 0, grid_left, 0, -TARGET_RES, grid_top)
+SHARED_WIDTH     = int((grid_right  - grid_left) / TARGET_RES)
+SHARED_HEIGHT    = int((grid_top    - grid_bottom) / TARGET_RES)
+
+print(f"  Shared grid origin:  ({grid_left:.2f}, {grid_top:.2f})")
+print(f"  Shared grid size:    {SHARED_WIDTH} x {SHARED_HEIGHT} pixels")
+
+
 def process_file(src_path, dst_path, target_crs, target_res):
     """
-    Reproject a single raster to target_crs and resample to target_res.
-    Uses nearest-neighbor resampling to preserve categorical pixel values.
+    Reproject a single raster onto the shared reference grid.
+    All files share the same transform, width, and height so that
+    pixel (row, col) refers to exactly the same geographic location
+    in every output file — eliminating inter-year misalignment.
     """
     with rasterio.open(src_path) as src:
-        transform, width, height = calculate_default_transform(
-            src.crs,
-            target_crs,
-            src.width,
-            src.height,
-            *src.bounds,
-            resolution=target_res
-        )
-
         kwargs = src.meta.copy()
         kwargs.update({
             'crs':       target_crs,
-            'transform': transform,
-            'width':     width,
-            'height':    height,
+            'transform': SHARED_TRANSFORM,
+            'width':     SHARED_WIDTH,
+            'height':    SHARED_HEIGHT,
             'dtype':     'uint8',
             'compress':  'lzw'
         })
@@ -192,7 +231,7 @@ def process_file(src_path, dst_path, target_crs, target_res):
                 resampling  =Resampling.nearest
             )
 
-print("\nStep 1 & 2: Reprojecting and resampling all files...")
+print("\nStep 1 & 2: Reprojecting and resampling all files onto shared grid...")
 print(f"  Target CRS: {TARGET_CRS}")
 print(f"  Target resolution: {TARGET_RES}m\n")
 
@@ -336,15 +375,24 @@ if temp_dir.exists() and temp_dir.is_dir():
     shutil.rmtree(temp_dir)
     print("\n  Temp files cleaned up")
 
-# Quick stats for 2012 (the final year)
+# Quick stats for 2012 (the final year) — chunked to avoid memory issues
 print("\n  Stats for 2012 vs 2006:")
+converted_pixels = 0
+retained_pixels  = 0
 with rasterio.open(conversion_paths[2012]) as src:
-    data = src.read(1)
+    for row_off in range(0, src.height, 2048):
+        actual_height = min(2048, src.height - row_off)
+        window = rasterio.windows.Window(
+            col_off=0, row_off=row_off,
+            width=src.width, height=actual_height
+        )
+        chunk = src.read(1, window=window)
+        converted_pixels += int(np.sum(chunk == 1))
+        retained_pixels  += int(np.sum(chunk == 2))
+        del chunk
 
-converted_pixels = np.sum(data == 1)
-retained_pixels  = np.sum(data == 2)
-converted_ha     = converted_pixels * pixel_area_ha
-retained_ha      = retained_pixels  * pixel_area_ha
+converted_ha = converted_pixels * pixel_area_ha
+retained_ha  = retained_pixels  * pixel_area_ha
 
 print(f"    Natural land converted to corn: {converted_ha:,.0f} hectares")
 print(f"    Natural land retained:          {retained_ha:,.0f} hectares")
@@ -411,7 +459,7 @@ plt.tight_layout()
 map_path = VIZ_DIR / 'cdl_conversion_map.png'
 plt.savefig(map_path, dpi=150, bbox_inches='tight')
 print(f"  Map saved to {map_path}")
-plt.show()
+# plt.show()
 
 ###################################################################
 # %% Step 6: County choropleth (2006 vs 2012 only)
@@ -497,7 +545,7 @@ plt.tight_layout()
 map_path = VIZ_DIR / 'cdl_conversion_county_map.png'
 plt.savefig(map_path, dpi=150, bbox_inches='tight')
 print(f"  Map saved to {map_path}")
-plt.show()
+# plt.show()
 
 ###################################################################
 # %% Step 7: Export one GeoJSON per year for Leaflet time slider
