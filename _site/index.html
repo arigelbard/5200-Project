@@ -972,22 +972,22 @@
       </div>
 
       <div class="data-source-entry">
-        <strong>USDA National Agricultural Statistics Service — Cropland Data Layer</strong>
+        <strong>USDA National Agricultural Statistics Service - Cropland Data Layer</strong>
         <p>An annual satellite-based land cover classification product produced by USDA NASS that classifies every pixel of the continental United States into one of over 100 land cover categories, including specific crop types, grassland, wetland, and developed land. Raster files for 11 Corn Belt states (Iowa, Illinois, Indiana, Kansas, Minnesota, Missouri, North Dakota, Nebraska, Ohio, South Dakota, and Wisconsin) for years 2006–2012 were downloaded from the CropScape portal and used to compute year-over-year natural land flows for Figure 4.</p>
       </div>
 
       <div class="data-source-entry">
-        <strong>USDA National Agricultural Statistics Service — Quick Stats</strong>
+        <strong>USDA National Agricultural Statistics Service - Quick Stats</strong>
         <p>An online query tool providing access to USDA NASS survey and census data on agricultural production, prices, and acreage at national, state, and county levels. County-level corn acres planted for 2006 and 2012 were downloaded for all counties in the continental United States and used to produce the corn acreage change map in Figure 3.</p>
       </div>
 
       <div class="data-source-entry">
-        <strong>EPA Renewable Fuel Standard Program — Regulatory Impact Analysis (EPA-420-R-10-006)</strong>
+        <strong>EPA Renewable Fuel Standard Program - Regulatory Impact Analysis (EPA-420-R-10-006)</strong>
         <p>The EPA's official regulatory impact analysis for the Renewable Fuel Standard 2 rulemaking, published in February 2010, which documents the agency's lifecycle greenhouse gas modeling for qualifying biofuels. This document provides the statutory basis for the 20% GHG reduction threshold under EISA and the EPA's projected lifecycle emissions figure of 74 gCO₂eq/MJ for corn ethanol used in Figure 5.</p>
       </div>
 
       <div class="data-source-entry">
-        <strong>Searchinger et al. (2008) — <em>Science</em> 319(5867)</strong>
+        <strong>Searchinger et al. (2008) - <em>Science</em> 319(5867)</strong>
         <p>A peer-reviewed study published in <em>Science</em> that quantified the indirect land use change emissions from US corn ethanol production by modeling the global agricultural market response to increased ethanol demand. This paper provides the alternative lifecycle emissions estimate of 177 gCO₂eq/MJ including indirect land use change and the gasoline baseline of 92 gCO₂eq/MJ used in Figure 5.</p>
       </div>
     </div>
@@ -998,7 +998,7 @@
 
       <h4>Cropland Data Layer Resolution</h4>
       <p>The USDA Cropland Data Layer (CDL) underwent a resolution change between survey years. Data for 2006 and 2007 were captured at 56-meter pixel resolution, while data for 2008 through 2012 were captured at 30-meter resolution. To ensure consistent comparisons across years, all source files were reprojected to a common 30-meter grid using nearest-neighbor resampling, the appropriate method for categorical land cover data, as it preserves discrete pixel values rather than averaging between categories. All years were reprojected onto an identical shared pixel grid derived from the combined bounding box of all 77 source files, ensuring that each pixel location refers to exactly the same geographic area in every year.</p>
-      <p>The resolution difference between 2006/2007 and 2008–2012 means that the coarser early data captures less spatial detail. Features smaller than approximately 56 meters — narrow wetland strips, small grassland patches, field margins — that were invisible at the original resolution may appear in later high-resolution surveys even if the underlying land did not change. This effect is inherently conservative with respect to our findings: it means some real natural land present in 2007 was not captured in the baseline, and therefore some real conversion is not counted. Our estimates of natural land loss should be understood as lower bounds.</p>
+      <p>The resolution difference between 2006/2007 and 2008–2012 means that the coarser early data captures less spatial detail. Features smaller than approximately 56 meters, narrow wetland strips, small grassland patches, field margins, that were invisible at the original resolution may appear in later high-resolution surveys even if the underlying land did not change. This effect is inherently conservative with respect to our findings: it means some real natural land present in 2007 was not captured in the baseline, and therefore some real conversion is not counted. Our estimates of natural land loss should be understood as lower bounds.</p>
 
       <h4>CDL Classification Methodology Change</h4>
       <p>Independent of the resolution change, the CDL classification methodology changed between 2006 and 2007. Specifically, Illinois, Indiana, and North Dakota show zero wetland pixels in the 2006 survey but hundreds of thousands of wetland pixels in 2007, a pattern confirmed in the raw pixel counts that cannot reflect real ecological change. This indicates that wetland categories were either not classified or were assigned to other land cover classes in the 2006 survey year.</p>
@@ -1006,7 +1006,7 @@
 
       <h4>Flow Layer Methodology</h4>
       <p>The land use map in Figure 4 shows year-over-year natural land flows rather than cumulative conversion from a fixed baseline. For each consecutive year pair (e.g., 2007 to 2008), a flow layer was computed by comparing the CDL mosaic for each year pixel by pixel. Pixels where land classified as grassland or wetland in year N became corn in year N+1 are counted as conversions (shown in red). Pixels where corn in year N became grassland or wetland in year N+1 are counted as reversions (shown in green). The net rate shown for each county is the difference between conversions and reversions, expressed as a percentage of the county's natural land at the start of the interval.</p>
-      <p>This approach captures the two-way nature of agricultural land use change — land moves both into and out of corn production from year to year due to crop rotation, commodity price fluctuations, conservation program enrollment, and weather events. The gross conversion figures (natural to corn) are substantially larger than the net figures because significant reversion occurs simultaneously. Between 2007 and 2012, approximately 9.4 million hectares of natural land were converted to corn on a gross basis, while approximately 7.1 million hectares of corn reverted to natural land, yielding a net loss of approximately 2.33 million hectares.</p>
+      <p>This approach captures the two-way nature of agricultural land use change, land moves both into and out of corn production from year to year due to crop rotation, commodity price fluctuations, conservation program enrollment, and weather events. The gross conversion figures (natural to corn) are substantially larger than the net figures because significant reversion occurs simultaneously. Between 2007 and 2012, approximately 9.4 million hectares of natural land were converted to corn on a gross basis, while approximately 7.1 million hectares of corn reverted to natural land, yielding a net loss of approximately 2.33 million hectares.</p>
       <p>Natural land is defined as pixels classified under CDL codes 176 (Grassland/Pasture), 190 (Woody Wetlands), and 195 (Herbaceous Wetlands). Counties with fewer than 100 natural land pixels in the source year are excluded from the percentage calculation and shown as no-data.</p>
     </div>
 
@@ -1018,7 +1018,7 @@
       <p>A measure of the total greenhouse gas emissions associated with a fuel across its entire production and use chain, from raw material extraction through processing, transportation, and combustion. Expressed in grams of CO₂-equivalent per megajoule of energy (gCO₂eq/MJ), lifecycle accounting allows fuels to be compared on a like-for-like energy basis. Unlike tailpipe emissions accounting, which counts only what comes out of a vehicle's exhaust, lifecycle accounting attributes emissions from farming, fertilizer production, refining, and distribution to the final fuel product.</p>
 
       <h4>Indirect land use change (ILUC)</h4>
-      <p>The greenhouse gas emissions that result when increased demand for a crop in one location causes agricultural expansion in another location. When US farmers shift cropland from food production to corn ethanol, the displaced food production must come from somewhere else globally — typically by converting forests, grasslands, or wetlands to agriculture in other countries. This land clearing releases carbon stored in vegetation and soil, generating emissions that are not captured in direct lifecycle accounting. The Searchinger et al. (2008) paper was among the first to systematically quantify this effect for US corn ethanol.</p>
+      <p>The greenhouse gas emissions that result when increased demand for a crop in one location causes agricultural expansion in another location. When US farmers shift cropland from food production to corn ethanol, the displaced food production must come from somewhere else globally, typically by converting forests, grasslands, or wetlands to agriculture in other countries. This land clearing releases carbon stored in vegetation and soil, generating emissions that are not captured in direct lifecycle accounting. The Searchinger et al. (2008) paper was among the first to systematically quantify this effect for US corn ethanol.</p>
 
       <h4>Net rate</h4>
       <p>As used in Figure 4, the net rate for a county in a given year interval is calculated as the number of pixels that converted from natural land to corn, minus the number of pixels that reverted from corn to natural land, divided by the total natural land pixels at the start of the interval, expressed as a percentage. A positive net rate (shown in red) indicates the county lost more natural land than it gained. A negative net rate (shown in green) indicates the county gained more natural land than it lost.</p>
