@@ -46,11 +46,6 @@ ax.axvline(x='2007_Q1', color='Black', linestyle='--', linewidth=1)
 ax.text('2006_Q3', 195, 'EISA (2007)', 
         color='black', fontsize=10, rotation=90)
 
-# EPA reduction mandate annotation line
-ax.axvline(x='2013_Q3', color='Black', linestyle='--', linewidth=1)
-ax.text('2013_Q1', 105, 'EPA reduces mandate (2013)', 
-        color='black', fontsize=10, rotation=90)
-
 # Horizontal line for line with 100 index
 ax.axhline(y=100, color="#919085", linestyle='--', linewidth=.5)
 ax.text('90', 40,'', color='Black', fontsize=10, rotation=0)
@@ -59,6 +54,8 @@ ax.text('90', 40,'', color='Black', fontsize=10, rotation=0)
 ax.axvspan('2012_Q2', '2012_Q4', alpha=0.15, color='#8B4513', label='2012 Drought')
 
 ax.legend()
+
+plt.savefig('commodity_prices.png', dpi=300, facecolor=fig.get_facecolor())
 
 plt.xticks(rotation=45)
 plt.tight_layout()

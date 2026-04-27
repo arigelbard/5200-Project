@@ -59,6 +59,7 @@ cp outputs/corn_belt_2011.geojson _site/
 cp outputs/corn_belt_2012.geojson _site/
 cp outputs/commodity_prices.png _site/
 cp outputs/corn_ethanol.html _site/
+cp outputs/corn_infographic_long.png _site/
 
 # Copy references
 cp references.bib _site/
