@@ -1,236 +1,339 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>The Ethanol Squeeze</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --bg: #F5F0E8; --border: #E8E0D0; --text: #2a2520; --muted: #7a7060;
-    }
-    html, body { width: 100%; background: var(--bg); font-family: 'Georgia', serif; color: var(--text); }
-    .chart-container { width: 100%; padding: 16px 12px 10px; background: var(--bg); }
-    .chart-title { font-size: 0.95rem; font-weight: bold; text-align: center; margin-bottom: 3px; }
-    .chart-subtitle { font-size: 0.7rem; color: var(--muted); text-align: center; margin-bottom: 14px; font-style: italic; }
-    .charts-row { display: flex; gap: 10px; width: 100%; align-items: flex-start; }
-    .line-chart-wrap { flex: 2.8; min-width: 0; }
-    .bar-chart-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; }
-    .bar-title { font-size: 0.68rem; color: var(--muted); text-align: center; margin-bottom: 4px; font-style: italic; min-height: 14px; }
-    svg text { font-family: 'Georgia', serif; }
-    .axis line, .axis path { stroke: var(--border); }
-    .axis text { fill: var(--muted); font-size: 10px; font-family: 'Georgia', serif; }
-    .grid line { stroke: var(--border); stroke-opacity: 0.8; }
-    .grid path { stroke-width: 0; }
-    .hover-line { stroke: #2C4A2E; stroke-width: 1; stroke-dasharray: 4 3; pointer-events: none; }
-    .hover-dot { fill: #2C4A2E; pointer-events: none; }
-    .legend { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 8px; justify-content: center; }
-    .legend-item { display: flex; align-items: center; gap: 4px; font-size: 0.67rem; color: var(--muted); }
-    .legend-line { width: 18px; height: 2px; border-radius: 1px; }
-    .legend-line.thick { height: 3px; }
-    .legend-box { width: 9px; height: 9px; border-radius: 2px; }
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>The Ethanol Squeeze</title>
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<style>
+  /* ── Reset & base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #F5F0E8;
+    font-family: 'Georgia', serif;
+    color: #2C2C2C;
+    padding: clamp(12px, 3vw, 32px);
+  }
+
+  #chart-wrapper {
+    width: 100%;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+
+  h1 {
+    font-size: clamp(14px, 2.5vw, 20px);
+    font-weight: normal;
+    letter-spacing: 0.02em;
+    margin-bottom: 6px;
+    color: #2C2C2C;
+  }
+
+  .subtitle {
+    font-size: clamp(11px, 1.5vw, 13px);
+    color: #7a7060;
+    margin-bottom: 18px;
+  }
+
+  #charts {
+    display: flex;
+    gap: clamp(16px, 3vw, 40px);
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  /* Left chart takes remaining space; right is fixed-ish narrow */
+  #left-chart  { flex: 1 1 0; min-width: 0; }
+  #right-chart { flex: 0 0 clamp(100px, 18%, 155px); }
+
+  svg { display: block; width: 100%; overflow: visible; }
+
+  /* ── Tooltip ── */
+  #tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: rgba(44,40,34,0.92);
+    color: #F5F0E8;
+    font-family: 'Georgia', serif;
+    font-size: 12px;
+    padding: 8px 11px;
+    border-radius: 4px;
+    line-height: 1.6;
+    opacity: 0;
+    transition: opacity 0.12s;
+    white-space: nowrap;
+    z-index: 10;
+  }
+
+  /* ── Legend ── */
+  #legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    margin-top: 14px;
+    font-size: clamp(10px, 1.4vw, 12px);
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-swatch { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+
+  /* axis text */
+  .axis text { font-family: 'Georgia', serif; fill: #5a5040; }
+  .axis path, .axis line { stroke: #C8BEA8; }
+  .grid line { stroke: #E8E0D0; stroke-dasharray: 3,3; }
+  .grid path { stroke: none; }
+</style>
 </head>
 <body>
-<div class="chart-container">
-  <div class="chart-title">The Ethanol Squeeze: Corn Price vs. Use Breakdown</div>
-  <div class="chart-subtitle">Hover over the line chart to see corn use breakdown for that quarter</div>
-  <div class="charts-row">
-    <div class="line-chart-wrap">
-      <svg id="line-svg" width="100%"></svg>
-      <div class="legend" id="line-legend"></div>
-    </div>
-    <div class="bar-chart-wrap">
-      <div class="bar-title" id="quarter-label">Hover to select</div>
-      <svg id="bar-svg"></svg>
-      <div class="legend" id="bar-legend"></div>
-    </div>
+
+<div id="chart-wrapper">
+  <h1>The Ethanol Squeeze: Corn Price vs. Use Breakdown</h1>
+  <p class="subtitle">Hover the line chart to inspect quarterly corn use composition &nbsp;·&nbsp; 2000 – 2015</p>
+
+  <div id="charts">
+    <div id="left-chart"></div>
+    <div id="right-chart"></div>
   </div>
+
+  <div id="legend"></div>
 </div>
 
+<div id="tooltip"></div>
+
 <script>
-const priceData = [{"yq":"2000_Q1","corn":88.4,"poultry":85.8,"soy":84.3,"pork":86.4},{"yq":"2000_Q2","corn":99.4,"poultry":89.5,"soy":84.5,"pork":87.2},{"yq":"2000_Q3","corn":104.7,"poultry":null,"soy":78.9,"pork":93.8},{"yq":"2000_Q4","corn":86.0,"poultry":null,"soy":89.5,"pork":96.0},{"yq":"2001_Q1","corn":95.0,"poultry":null,"soy":80.4,"pork":96.7},{"yq":"2001_Q2","corn":100.5,"poultry":null,"soy":77.5,"pork":91.5},{"yq":"2001_Q3","corn":96.2,"poultry":null,"soy":82.6,"pork":85.9},{"yq":"2001_Q4","corn":93.8,"poultry":null,"soy":99.3,"pork":82.4},{"yq":"2002_Q1","corn":120.3,"poultry":null,"soy":100.6,"pork":82.9},{"yq":"2002_Q2","corn":105.6,"poultry":91.7,"soy":99.9,"pork":87.2},{"yq":"2002_Q3","corn":98.1,"poultry":87.0,"soy":109.2,"pork":88.3},{"yq":"2002_Q4","corn":110.0,"poultry":88.7,"soy":107.1,"pork":90.9},{"yq":"2003_Q1","corn":110.6,"poultry":95.5,"soy":126.1,"pork":92.7},{"yq":"2003_Q2","corn":118.5,"poultry":107.1,"soy":146.7,"pork":92.9},{"yq":"2003_Q3","corn":119.6,"poultry":118.6,"soy":177.0,"pork":100.6},{"yq":"2003_Q4","corn":113.0,"poultry":119.0,"soy":142.2,"pork":106.4},{"yq":"2004_Q1","corn":108.4,"poultry":106.7,"soy":92.9,"pork":107.3},{"yq":"2004_Q2","corn":119.5,"poultry":110.2,"soy":97.3,"pork":110.0},{"yq":"2004_Q3","corn":144.4,"poultry":111.9,"soy":112.8,"pork":105.8},{"yq":"2004_Q4","corn":129.7,"poultry":110.3,"soy":120.0,"pork":98.0},{"yq":"2005_Q1","corn":93.2,"poultry":111.5,"soy":97.6,"pork":101.4},{"yq":"2005_Q2","corn":101.7,"poultry":100.5,"soy":102.6,"pork":100.0},{"yq":"2005_Q3","corn":101.8,"poultry":88.5,"soy":99.9,"pork":96.6},{"yq":"2005_Q4","corn":103.4,"poultry":99.4,"soy":99.9,"pork":102.0},{"yq":"2006_Q1","corn":129.5,"poultry":108.6,"soy":100.5,"pork":101.1},{"yq":"2006_Q2","corn":119.3,"poultry":113.4,"soy":118.9,"pork":103.0},{"yq":"2006_Q3","corn":107.6,"poultry":126.6,"soy":125.9,"pork":107.5},{"yq":"2006_Q4","corn":108.1,"poultry":123.3,"soy":140.0,"pork":106.6},{"yq":"2007_Q1","corn":169.9,"poultry":126.7,"soy":164.0,"pork":100.3},{"yq":"2007_Q2","corn":174.1,"poultry":126.2,"soy":217.6,"pork":98.9},{"yq":"2007_Q3","corn":175.0,"poultry":128.0,"soy":238.8,"pork":99.0},{"yq":"2007_Q4","corn":171.6,"poultry":131.1,"soy":246.2,"pork":106.3},{"yq":"2008_Q1","corn":231.5,"poultry":133.0,"soy":171.8,"pork":104.6},{"yq":"2008_Q2","corn":214.3,"poultry":133.7,"soy":161.2,"pork":94.0},{"yq":"2008_Q3","corn":256.4,"poultry":123.5,"soy":181.7,"pork":90.5},{"yq":"2008_Q4","corn":271.2,"poultry":127.8,"soy":208.0,"pork":87.9},{"yq":"2009_Q1","corn":178.4,"poultry":120.7,"soy":171.9,"pork":88.4},{"yq":"2009_Q2","corn":200.8,"poultry":133.0,"soy":175.0,"pork":102.7},{"yq":"2009_Q3","corn":197.9,"poultry":131.5,"soy":169.4,"pork":111.4},{"yq":"2009_Q4","corn":185.7,"poultry":140.6,"soy":179.5,"pork":110.0},{"yq":"2010_Q1","corn":219.8,"poultry":148.3,"soy":204.2,"pork":113.9},{"yq":"2010_Q2","corn":204.2,"poultry":130.7,"soy":235.2,"pork":118.2},{"yq":"2010_Q3","corn":177.2,"poultry":137.2,"soy":232.3,"pork":127.8},{"yq":"2010_Q4","corn":179.0,"poultry":139.0,"soy":240.3,"pork":124.4},{"yq":"2011_Q1","corn":304.5,"poultry":135.2,"soy":221.6,"pork":127.9},{"yq":"2011_Q2","corn":279.2,"poultry":144.7,"soy":213.4,"pork":124.5},{"yq":"2011_Q3","corn":309.0,"poultry":147.4,"soy":249.2,"pork":121.1},{"yq":"2011_Q4","corn":332.5,"poultry":144.2,"soy":280.3,"pork":118.4},{"yq":"2012_Q1","corn":351.0,"poultry":156.6,"soy":277.1,"pork":117.5},{"yq":"2012_Q2","corn":326.2,"poultry":176.4,"soy":259.8,"pork":122.0},{"yq":"2012_Q3","corn":323.0,"poultry":173.9,"soy":262.4,"pork":120.4},{"yq":"2012_Q4","corn":358.8,"poultry":168.4,"soy":267.4,"pork":125.2},{"yq":"2013_Q1","corn":244.4,"poultry":167.0,"soy":241.0,"pork":128.3},{"yq":"2013_Q2","corn":312.4,"poultry":168.2,"soy":237.3,"pork":130.1},{"yq":"2013_Q3","corn":357.6,"poultry":180.2,"soy":263.4,"pork":156.6},{"yq":"2013_Q4","corn":338.9,"poultry":180.4,"soy":230.2,"pork":157.2},{"yq":"2014_Q1","corn":180.9,"poultry":199.8,"soy":181.7,"pork":146.9},{"yq":"2014_Q2","corn":213.2,"poultry":172.9,"soy":178.0,"pork":130.2},{"yq":"2014_Q3","corn":236.6,"poultry":167.0,"soy":171.6,"pork":112.2},{"yq":"2014_Q4","corn":206.9,"poultry":155.2,"soy":178.2,"pork":109.9},{"yq":"2015_Q1","corn":185.7,"poultry":147.2,"soy":156.8,"pork":112.6},{"yq":"2015_Q2","corn":191.1,"poultry":155.1,"soy":153.7,"pork":110.9},{"yq":"2015_Q3","corn":190.1,"poultry":148.1,"soy":170.0,"pork":113.0},{"yq":"2015_Q4","corn":187.9,"poultry":152.8,"soy":192.7,"pork":112.8}];
+// ── Raw data ──────────────────────────────────────────────────────────────
+const priceData = [{"year_quarter": "2000_Q1", "corn_price": 1.7366666666666666}, {"year_quarter": "2000_Q2", "corn_price": 1.9533333333333331}, {"year_quarter": "2000_Q3", "corn_price": 2.056666666666666}, {"year_quarter": "2000_Q4", "corn_price": 1.6900000000000002}, {"year_quarter": "2001_Q1", "corn_price": 1.8666666666666665}, {"year_quarter": "2001_Q2", "corn_price": 1.9733333333333336}, {"year_quarter": "2001_Q3", "corn_price": 1.89}, {"year_quarter": "2001_Q4", "corn_price": 1.8433333333333335}, {"year_quarter": "2002_Q1", "corn_price": 2.3633333333333333}, {"year_quarter": "2002_Q2", "corn_price": 2.0733333333333333}, {"year_quarter": "2002_Q3", "corn_price": 1.9266666666666663}, {"year_quarter": "2002_Q4", "corn_price": 2.1599999999999997}, {"year_quarter": "2003_Q1", "corn_price": 2.1733333333333333}, {"year_quarter": "2003_Q2", "corn_price": 2.3266666666666667}, {"year_quarter": "2003_Q3", "corn_price": 2.35}, {"year_quarter": "2003_Q4", "corn_price": 2.22}, {"year_quarter": "2004_Q1", "corn_price": 2.1300000000000003}, {"year_quarter": "2004_Q2", "corn_price": 2.3466666666666667}, {"year_quarter": "2004_Q3", "corn_price": 2.8366666666666664}, {"year_quarter": "2004_Q4", "corn_price": 2.5466666666666664}, {"year_quarter": "2005_Q1", "corn_price": 1.83}, {"year_quarter": "2005_Q2", "corn_price": 1.9966666666666668}, {"year_quarter": "2005_Q3", "corn_price": 2.0}, {"year_quarter": "2005_Q4", "corn_price": 2.03}, {"year_quarter": "2006_Q1", "corn_price": 2.5433333333333334}, {"year_quarter": "2006_Q2", "corn_price": 2.3433333333333333}, {"year_quarter": "2006_Q3", "corn_price": 2.1133333333333333}, {"year_quarter": "2006_Q4", "corn_price": 2.1233333333333335}, {"year_quarter": "2007_Q1", "corn_price": 3.3366666666666664}, {"year_quarter": "2007_Q2", "corn_price": 3.42}, {"year_quarter": "2007_Q3", "corn_price": 3.436666666666667}, {"year_quarter": "2007_Q4", "corn_price": 3.3699999999999997}, {"year_quarter": "2008_Q1", "corn_price": 4.546666666666667}, {"year_quarter": "2008_Q2", "corn_price": 4.21}, {"year_quarter": "2008_Q3", "corn_price": 5.036666666666666}, {"year_quarter": "2008_Q4", "corn_price": 5.326666666666667}, {"year_quarter": "2009_Q1", "corn_price": 3.5033333333333334}, {"year_quarter": "2009_Q2", "corn_price": 3.943333333333334}, {"year_quarter": "2009_Q3", "corn_price": 3.8866666666666663}, {"year_quarter": "2009_Q4", "corn_price": 3.6466666666666665}, {"year_quarter": "2010_Q1", "corn_price": 4.316666666666666}, {"year_quarter": "2010_Q2", "corn_price": 4.010000000000001}, {"year_quarter": "2010_Q3", "corn_price": 3.48}, {"year_quarter": "2010_Q4", "corn_price": 3.516666666666667}, {"year_quarter": "2011_Q1", "corn_price": 5.98}, {"year_quarter": "2011_Q2", "corn_price": 5.483333333333334}, {"year_quarter": "2011_Q3", "corn_price": 6.07}, {"year_quarter": "2011_Q4", "corn_price": 6.53}, {"year_quarter": "2012_Q1", "corn_price": 6.8933333333333335}, {"year_quarter": "2012_Q2", "corn_price": 6.406666666666666}, {"year_quarter": "2012_Q3", "corn_price": 6.343333333333334}, {"year_quarter": "2012_Q4", "corn_price": 7.046666666666667}, {"year_quarter": "2013_Q1", "corn_price": 4.8}, {"year_quarter": "2013_Q2", "corn_price": 6.136666666666667}, {"year_quarter": "2013_Q3", "corn_price": 7.023333333333333}, {"year_quarter": "2013_Q4", "corn_price": 6.656666666666666}, {"year_quarter": "2014_Q1", "corn_price": 3.5533333333333332}, {"year_quarter": "2014_Q2", "corn_price": 4.1866666666666665}, {"year_quarter": "2014_Q3", "corn_price": 4.6466666666666665}, {"year_quarter": "2014_Q4", "corn_price": 4.0633333333333335}, {"year_quarter": "2015_Q1", "corn_price": 3.6466666666666665}, {"year_quarter": "2015_Q2", "corn_price": 3.7533333333333334}, {"year_quarter": "2015_Q3", "corn_price": 3.733333333333333}, {"year_quarter": "2015_Q4", "corn_price": 3.69}];
+const useData   = [{"year_quarter": "2000_Q1", "Feed & Residual": 68.45961257086235, "Food, Seed & Industrial": 10.57119930108902, "Ethanol": 4.64723615111888, "Exports": 16.321935870021115}, {"year_quarter": "2000_Q2", "Feed & Residual": 64.39945231163564, "Food, Seed & Industrial": 12.510719399761856, "Ethanol": 6.3951942999245, "Exports": 16.694646048756486}, {"year_quarter": "2000_Q3", "Feed & Residual": 53.941307080885345, "Food, Seed & Industrial": 17.009029462378965, "Ethanol": 7.6003551092187, "Exports": 21.449284786661163}, {"year_quarter": "2000_Q4", "Feed & Residual": 46.73678953467025, "Food, Seed & Industrial": 17.26810991991504, "Ethanol": 8.15208443959281, "Exports": 27.843045715740832}, {"year_quarter": "2001_Q1", "Feed & Residual": 69.89401233730285, "Food, Seed & Industrial": 10.427667895555295, "Ethanol": 5.41193251496613, "Exports": 14.26635221387886}, {"year_quarter": "2001_Q2", "Feed & Residual": 62.222799554536856, "Food, Seed & Industrial": 12.550482854848944, "Ethanol": 7.08207480284371, "Exports": 18.144610413995828}, {"year_quarter": "2001_Q3", "Feed & Residual": 52.650162881238586, "Food, Seed & Industrial": 16.631516100838812, "Ethanol": 8.15843634010965, "Exports": 22.559834735133546}, {"year_quarter": "2001_Q4", "Feed & Residual": 47.628974204409985, "Food, Seed & Industrial": 17.698458637210155, "Ethanol": 9.12121395242217, "Exports": 25.55152300907098}, {"year_quarter": "2002_Q1", "Feed & Residual": 67.6949715416993, "Food, Seed & Industrial": 11.159413262875892, "Ethanol": 7.7120099867824, "Exports": 13.433601794124368}, {"year_quarter": "2002_Q2", "Feed & Residual": 61.920245657843054, "Food, Seed & Industrial": 12.603620967285725, "Ethanol": 9.93161785035046, "Exports": 15.544399993944603}, {"year_quarter": "2002_Q3", "Feed & Residual": 52.675819557298965, "Food, Seed & Industrial": 17.12422755931745, "Ethanol": 11.9195281647242, "Exports": 18.280410778832092}, {"year_quarter": "2002_Q4", "Feed & Residual": 46.0007368227152, "Food, Seed & Industrial": 18.490813399647376, "Ethanol": 13.8851240756822, "Exports": 21.623536222730984}, {"year_quarter": "2003_Q1", "Feed & Residual": 67.0405824273246, "Food, Seed & Industrial": 10.244410579985235, "Ethanol": 8.14476342613581, "Exports": 14.57027149387259}, {"year_quarter": "2003_Q2", "Feed & Residual": 58.43034522918165, "Food, Seed & Industrial": 11.92517124071845, "Ethanol": 10.8089055226318, "Exports": 18.835529605460344}, {"year_quarter": "2003_Q3", "Feed & Residual": 50.25064579989438, "Food, Seed & Industrial": 16.38461318342278, "Ethanol": 13.2083919734379, "Exports": 20.156327364832933}, {"year_quarter": "2003_Q4", "Feed & Residual": 44.109184136320366, "Food, Seed & Industrial": 17.697688060354796, "Ethanol": 15.3902694665755, "Exports": 22.802873224953824}, {"year_quarter": "2004_Q1", "Feed & Residual": 65.46264676699815, "Food, Seed & Industrial": 10.07094562063306, "Ethanol": 9.40700654035128, "Exports": 15.059379941976909}, {"year_quarter": "2004_Q2", "Feed & Residual": 60.00912575828675, "Food, Seed & Industrial": 11.708262629093154, "Ethanol": 12.0027295728685, "Exports": 16.279878333107227}, {"year_quarter": "2004_Q3", "Feed & Residual": 53.34083205473847, "Food, Seed & Industrial": 15.48233325558602, "Ethanol": 13.6155205496803, "Exports": 17.561314139995172}, {"year_quarter": "2004_Q4", "Feed & Residual": 47.176977513724225, "Food, Seed & Industrial": 16.305798330201064, "Ethanol": 16.0883281470697, "Exports": 20.428886960565997}, {"year_quarter": "2005_Q1", "Feed & Residual": 65.33010714507535, "Food, Seed & Industrial": 10.012266663854152, "Ethanol": 10.6732807627539, "Exports": 13.984319060995231}, {"year_quarter": "2005_Q2", "Feed & Residual": 57.9394414153526, "Food, Seed & Industrial": 11.626108572204249, "Ethanol": 13.6700350388, "Exports": 16.764432648582613}, {"year_quarter": "2005_Q3", "Feed & Residual": 48.65417683550552, "Food, Seed & Industrial": 14.504857086143785, "Ethanol": 15.4559455099807, "Exports": 21.38502056836996}, {"year_quarter": "2005_Q4", "Feed & Residual": 40.18894275036333, "Food, Seed & Industrial": 15.329564606917437, "Ethanol": 18.6091913627602, "Exports": 25.87227623673857}, {"year_quarter": "2006_Q1", "Feed & Residual": 60.541728698275456, "Food, Seed & Industrial": 9.687245740496197, "Ethanol": 13.0627381382947, "Exports": 16.708273404490946}, {"year_quarter": "2006_Q2", "Feed & Residual": 53.09410807074739, "Food, Seed & Industrial": 11.34659460228928, "Ethanol": 17.6608861880836, "Exports": 17.89842160591541}, {"year_quarter": "2006_Q3", "Feed & Residual": 43.631831571521765, "Food, Seed & Industrial": 15.383660009534372, "Ethanol": 21.4878657220475, "Exports": 19.496607267772923}, {"year_quarter": "2006_Q4", "Feed & Residual": 33.39401629574841, "Food, Seed & Industrial": 16.338386167508258, "Ethanol": 26.9331478518142, "Exports": 23.33444968492917}, {"year_quarter": "2007_Q1", "Feed & Residual": 58.7059147913689, "Food, Seed & Industrial": 8.408250547702306, "Ethanol": 15.836540100516, "Exports": 17.049277342870866}, {"year_quarter": "2007_Q2", "Feed & Residual": 50.67274349311156, "Food, Seed & Industrial": 9.63546638824773, "Ethanol": 20.9287352130118, "Exports": 18.763063671968258}, {"year_quarter": "2007_Q3", "Feed & Residual": 37.47171630081076, "Food, Seed & Industrial": 13.16807356102995, "Ethanol": 28.8200324107341, "Exports": 20.54018828925471}, {"year_quarter": "2007_Q4", "Feed & Residual": 27.719168478490968, "Food, Seed & Industrial": 14.61615889927419, "Ethanol": 36.1340484331974, "Exports": 21.53061588743694}, {"year_quarter": "2008_Q1", "Feed & Residual": 53.64082108646265, "Food, Seed & Industrial": 9.000325730907361, "Ethanol": 24.8858190881647, "Exports": 12.473047990835068}, {"year_quarter": "2008_Q2", "Feed & Residual": 50.37973215838599, "Food, Seed & Industrial": 9.740268392530725, "Ethanol": 27.9989359620175, "Exports": 11.88106348706579}, {"year_quarter": "2008_Q3", "Feed & Residual": 34.914166486584264, "Food, Seed & Industrial": 13.067510700230814, "Ethanol": 33.7446600779365, "Exports": 18.27366273524847}, {"year_quarter": "2008_Q4", "Feed & Residual": 26.38548317463456, "Food, Seed & Industrial": 13.173232797935745, "Ethanol": 39.7342603226287, "Exports": 20.707043012787295}, {"year_quarter": "2009_Q1", "Feed & Residual": 51.83859700488696, "Food, Seed & Industrial": 8.375099993826495, "Ethanol": 27.6247353794113, "Exports": 12.16156762187525}, {"year_quarter": "2009_Q2", "Feed & Residual": 41.783312855608365, "Food, Seed & Industrial": 9.743824906728738, "Ethanol": 35.3416457112666, "Exports": 13.131216526396328}, {"year_quarter": "2009_Q3", "Feed & Residual": 37.44271960241499, "Food, Seed & Industrial": 11.241484707905403, "Ethanol": 35.1162792070976, "Exports": 16.199516482582034}, {"year_quarter": "2009_Q4", "Feed & Residual": 19.043864645884607, "Food, Seed & Industrial": 13.827635233587031, "Ethanol": 46.3246527324624, "Exports": 20.803847388066004}, {"year_quarter": "2010_Q1", "Feed & Residual": 50.15906483352766, "Food, Seed & Industrial": 8.324535870008077, "Ethanol": 30.4448498886117, "Exports": 11.071549407852524}, {"year_quarter": "2010_Q2", "Feed & Residual": 44.1110613903707, "Food, Seed & Industrial": 9.086266111990245, "Ethanol": 35.4282955557657, "Exports": 11.374376941873315}, {"year_quarter": "2010_Q3", "Feed & Residual": 24.764885026962084, "Food, Seed & Industrial": 13.488796066050124, "Ethanol": 43.9284317286469, "Exports": 17.81788717834092}, {"year_quarter": "2010_Q4", "Feed & Residual": 17.724032052633998, "Food, Seed & Industrial": 14.355544192158709, "Ethanol": 49.6199611418957, "Exports": 18.30046261331159}, {"year_quarter": "2011_Q1", "Feed & Residual": 46.90545754446168, "Food, Seed & Industrial": 9.082868344041444, "Ethanol": 33.3188639774373, "Exports": 10.692810134059592}, {"year_quarter": "2011_Q2", "Feed & Residual": 42.62542244433411, "Food, Seed & Industrial": 9.186384411318183, "Ethanol": 35.9443028217724, "Exports": 12.243890322575307}, {"year_quarter": "2011_Q3", "Feed & Residual": 29.711008217404657, "Food, Seed & Industrial": 13.41719840350735, "Ethanol": 43.0828469907749, "Exports": 13.788946388313086}, {"year_quarter": "2011_Q4", "Feed & Residual": 15.051751542822275, "Food, Seed & Industrial": 16.831383385402095, "Ethanol": 54.7108674322672, "Exports": 13.405997639508415}, {"year_quarter": "2012_Q1", "Feed & Residual": 54.9811261625475, "Food, Seed & Industrial": 9.10901232745474, "Ethanol": 30.0139528390304, "Exports": 5.895908670967391}, {"year_quarter": "2012_Q2", "Feed & Residual": 40.59896954447205, "Food, Seed & Industrial": 12.127398923095935, "Ethanol": 41.2608985103238, "Exports": 6.01359179727828}, {"year_quarter": "2012_Q3", "Feed & Residual": 34.20671455995656, "Food, Seed & Industrial": 14.296255489720672, "Ethanol": 44.5483890149862, "Exports": 6.9505856886352735}, {"year_quarter": "2012_Q4", "Feed & Residual": 12.4440319376967, "Food, Seed & Industrial": 17.88136131257766, "Ethanol": 61.4992134490636, "Exports": 8.178366170953142}, {"year_quarter": "2013_Q1", "Feed & Residual": 54.902286039876294, "Food, Seed & Industrial": 7.934609449104044, "Ethanol": 28.8510994971144, "Exports": 8.312005013905232}, {"year_quarter": "2013_Q2", "Feed & Residual": 42.259249898263576, "Food, Seed & Industrial": 9.59855563271936, "Ethanol": 36.8437711226251, "Exports": 11.29842334639192}, {"year_quarter": "2013_Q3", "Feed & Residual": 26.751150945631142, "Food, Seed & Industrial": 12.125147076242746, "Ethanol": 41.0267619536463, "Exports": 20.096940024479807}, {"year_quarter": "2013_Q4", "Feed & Residual": 14.69075158486647, "Food, Seed & Industrial": 13.623663378816882, "Ethanol": 50.9510341284672, "Exports": 20.73455090784945}, {"year_quarter": "2014_Q1", "Feed & Residual": 52.48624735435394, "Food, Seed & Industrial": 7.977265120839443, "Ethanol": 30.0799939662771, "Exports": 9.45649355852947}, {"year_quarter": "2014_Q2", "Feed & Residual": 41.70142030158301, "Food, Seed & Industrial": 9.444779139340326, "Ethanol": 37.3158725457483, "Exports": 11.537928013328322}, {"year_quarter": "2014_Q3", "Feed & Residual": 33.092283127392804, "Food, Seed & Industrial": 11.436261257174651, "Ethanol": 39.1477812252403, "Exports": 16.323674390192274}, {"year_quarter": "2014_Q4", "Feed & Residual": 19.039038269763868, "Food, Seed & Industrial": 12.849967521476996, "Ethanol": 48.869289955445, "Exports": 19.241704253314182}, {"year_quarter": "2015_Q1", "Feed & Residual": 52.99401241304085, "Food, Seed & Industrial": 8.050621308842626, "Ethanol": 31.6286363023792, "Exports": 7.326729975737307}, {"year_quarter": "2015_Q2", "Feed & Residual": 41.91177627977504, "Food, Seed & Industrial": 9.773505950198242, "Ethanol": 38.3682995777467, "Exports": 9.946418192280046}, {"year_quarter": "2015_Q3", "Feed & Residual": 29.191089670701754, "Food, Seed & Industrial": 12.457160957295544, "Ethanol": 40.3858379624884, "Exports": 17.96591140951427}, {"year_quarter": "2015_Q4", "Feed & Residual": 19.640085153228327, "Food, Seed & Industrial": 12.278062877753754, "Ethanol": 44.8885992186931, "Exports": 23.19325275032488}];
 
-const useData = {};
-[{"yq":"2000_Q1","Ethanol":4.6,"Feed":68.5,"FSI":10.6,"Exports":16.3},{"yq":"2000_Q2","Ethanol":6.4,"Feed":64.4,"FSI":12.5,"Exports":16.7},{"yq":"2000_Q3","Ethanol":7.6,"Feed":53.9,"FSI":17.0,"Exports":21.4},{"yq":"2000_Q4","Ethanol":8.2,"Feed":46.7,"FSI":17.3,"Exports":27.8},{"yq":"2001_Q1","Ethanol":5.4,"Feed":69.9,"FSI":10.4,"Exports":14.3},{"yq":"2001_Q2","Ethanol":7.1,"Feed":62.2,"FSI":12.6,"Exports":18.1},{"yq":"2001_Q3","Ethanol":8.2,"Feed":52.7,"FSI":16.6,"Exports":22.6},{"yq":"2001_Q4","Ethanol":9.1,"Feed":47.6,"FSI":17.7,"Exports":25.6},{"yq":"2002_Q1","Ethanol":7.7,"Feed":67.7,"FSI":11.2,"Exports":13.4},{"yq":"2002_Q2","Ethanol":9.9,"Feed":61.9,"FSI":12.6,"Exports":15.5},{"yq":"2002_Q3","Ethanol":11.9,"Feed":52.7,"FSI":17.1,"Exports":18.3},{"yq":"2002_Q4","Ethanol":13.9,"Feed":46.0,"FSI":18.5,"Exports":21.6},{"yq":"2003_Q1","Ethanol":8.1,"Feed":67.0,"FSI":10.2,"Exports":14.6},{"yq":"2003_Q2","Ethanol":10.8,"Feed":58.4,"FSI":11.9,"Exports":18.8},{"yq":"2003_Q3","Ethanol":13.2,"Feed":50.3,"FSI":16.4,"Exports":20.2},{"yq":"2003_Q4","Ethanol":15.4,"Feed":44.1,"FSI":17.7,"Exports":22.8},{"yq":"2004_Q1","Ethanol":9.4,"Feed":65.5,"FSI":10.1,"Exports":15.1},{"yq":"2004_Q2","Ethanol":12.0,"Feed":60.0,"FSI":11.7,"Exports":16.3},{"yq":"2004_Q3","Ethanol":13.6,"Feed":53.3,"FSI":15.5,"Exports":17.6},{"yq":"2004_Q4","Ethanol":16.1,"Feed":47.2,"FSI":16.3,"Exports":20.4},{"yq":"2005_Q1","Ethanol":10.7,"Feed":65.3,"FSI":10.0,"Exports":14.0},{"yq":"2005_Q2","Ethanol":13.7,"Feed":57.9,"FSI":11.6,"Exports":16.8},{"yq":"2005_Q3","Ethanol":15.5,"Feed":48.7,"FSI":14.5,"Exports":21.4},{"yq":"2005_Q4","Ethanol":18.6,"Feed":40.2,"FSI":15.3,"Exports":25.9},{"yq":"2006_Q1","Ethanol":13.1,"Feed":60.5,"FSI":9.7,"Exports":16.7},{"yq":"2006_Q2","Ethanol":17.7,"Feed":53.1,"FSI":11.3,"Exports":17.9},{"yq":"2006_Q3","Ethanol":21.5,"Feed":43.6,"FSI":15.4,"Exports":19.5},{"yq":"2006_Q4","Ethanol":26.9,"Feed":33.4,"FSI":16.3,"Exports":23.3},{"yq":"2007_Q1","Ethanol":15.8,"Feed":58.7,"FSI":8.4,"Exports":17.0},{"yq":"2007_Q2","Ethanol":20.9,"Feed":50.7,"FSI":9.6,"Exports":18.8},{"yq":"2007_Q3","Ethanol":28.8,"Feed":37.5,"FSI":13.2,"Exports":20.5},{"yq":"2007_Q4","Ethanol":36.1,"Feed":27.7,"FSI":14.6,"Exports":21.5},{"yq":"2008_Q1","Ethanol":24.9,"Feed":53.6,"FSI":9.0,"Exports":12.5},{"yq":"2008_Q2","Ethanol":28.0,"Feed":50.4,"FSI":9.7,"Exports":11.9},{"yq":"2008_Q3","Ethanol":33.7,"Feed":34.9,"FSI":13.1,"Exports":18.3},{"yq":"2008_Q4","Ethanol":39.7,"Feed":26.4,"FSI":13.2,"Exports":20.7},{"yq":"2009_Q1","Ethanol":27.6,"Feed":51.8,"FSI":8.4,"Exports":12.2},{"yq":"2009_Q2","Ethanol":35.3,"Feed":41.8,"FSI":9.7,"Exports":13.1},{"yq":"2009_Q3","Ethanol":35.1,"Feed":37.4,"FSI":11.2,"Exports":16.2},{"yq":"2009_Q4","Ethanol":46.3,"Feed":19.0,"FSI":13.8,"Exports":20.8},{"yq":"2010_Q1","Ethanol":30.4,"Feed":50.2,"FSI":8.3,"Exports":11.1},{"yq":"2010_Q2","Ethanol":35.4,"Feed":44.1,"FSI":9.1,"Exports":11.4},{"yq":"2010_Q3","Ethanol":43.9,"Feed":24.8,"FSI":13.5,"Exports":17.8},{"yq":"2010_Q4","Ethanol":49.6,"Feed":17.7,"FSI":14.4,"Exports":18.3},{"yq":"2011_Q1","Ethanol":33.3,"Feed":46.9,"FSI":9.1,"Exports":10.7},{"yq":"2011_Q2","Ethanol":35.9,"Feed":42.6,"FSI":9.2,"Exports":12.2},{"yq":"2011_Q3","Ethanol":43.1,"Feed":29.7,"FSI":13.4,"Exports":13.8},{"yq":"2011_Q4","Ethanol":54.7,"Feed":15.1,"FSI":16.8,"Exports":13.4},{"yq":"2012_Q1","Ethanol":30.0,"Feed":55.0,"FSI":9.1,"Exports":5.9},{"yq":"2012_Q2","Ethanol":41.3,"Feed":40.6,"FSI":12.1,"Exports":6.0},{"yq":"2012_Q3","Ethanol":44.5,"Feed":34.2,"FSI":14.3,"Exports":7.0},{"yq":"2012_Q4","Ethanol":61.5,"Feed":12.4,"FSI":17.9,"Exports":8.2},{"yq":"2013_Q1","Ethanol":28.9,"Feed":54.9,"FSI":7.9,"Exports":8.3},{"yq":"2013_Q2","Ethanol":36.8,"Feed":42.3,"FSI":9.6,"Exports":11.3},{"yq":"2013_Q3","Ethanol":41.0,"Feed":26.8,"FSI":12.1,"Exports":20.1},{"yq":"2013_Q4","Ethanol":51.0,"Feed":14.7,"FSI":13.6,"Exports":20.7},{"yq":"2014_Q1","Ethanol":30.1,"Feed":52.5,"FSI":8.0,"Exports":9.5},{"yq":"2014_Q2","Ethanol":37.3,"Feed":41.7,"FSI":9.4,"Exports":11.5},{"yq":"2014_Q3","Ethanol":39.1,"Feed":33.1,"FSI":11.4,"Exports":16.3},{"yq":"2014_Q4","Ethanol":48.9,"Feed":19.0,"FSI":12.9,"Exports":19.2},{"yq":"2015_Q1","Ethanol":31.6,"Feed":53.0,"FSI":8.1,"Exports":7.3},{"yq":"2015_Q2","Ethanol":38.4,"Feed":41.9,"FSI":9.8,"Exports":9.9},{"yq":"2015_Q3","Ethanol":40.4,"Feed":29.2,"FSI":12.5,"Exports":18.0},{"yq":"2015_Q4","Ethanol":44.9,"Feed":19.6,"FSI":12.3,"Exports":23.2}].forEach(d => { useData[d.yq] = d; });
+const CATEGORIES = ['Ethanol','Feed & Residual','Food, Seed & Industrial','Exports'];
+const COLORS     = {'Ethanol':'#C9922A','Feed & Residual':'#2C4A2E',
+                    'Food, Seed & Industrial':'#6B8E6B','Exports':'#8B7355'};
 
-const categories = ['Ethanol','Feed','FSI','Exports'];
-const catColors  = { Ethanol:'#C9922A', Feed:'#2C4A2E', FSI:'#6B8E6B', Exports:'#8B7355' };
-const catLabels  = { Ethanol:'Ethanol', Feed:'Feed & Residual', FSI:'Food, Seed & Industrial', Exports:'Exports' };
-const lineKeys   = ['poultry','soy','pork','corn'];
-const lineColors = { corn:'#C9922A', poultry:'#5873CB', soy:'#2C4A2E', pork:'#8B4513' };
-const lineLabels = { corn:'Corn', poultry:'Poultry', soy:'Soybeans', pork:'Pork' };
-const lineWidths = { corn:2, poultry:1, soy:1, pork:1 };
-const annotations = [
-  { yq:'2005_Q1', label:'Energy Policy Act (2005)' },
-  { yq:'2007_Q1', label:'EISA (2007)' },
-  { yq:'2013_Q3', label:'EPA reduces mandate (2013)' },
-];
+// Quarter labels shown on x-axis (every other year)
+const X_TICKS = ['2000_Q1','2002_Q1','2004_Q1','2006_Q1',
+                 '2008_Q1','2010_Q1','2012_Q1','2014_Q1'];
 
+function fmtLabel(q) {
+  const [y, qtr] = q.split('_');
+  return qtr === 'Q1' ? y : '';
+}
+
+// ── State ─────────────────────────────────────────────────────────────────
 let selectedQ = '2005_Q1';
+const tooltip = document.getElementById('tooltip');
 
-function drawLineChart() {
-  const wrap = document.querySelector('.line-chart-wrap');
-  const W    = wrap.clientWidth;
-  const m    = { top:16, right:8, bottom:46, left:42 };
-  const w    = W - m.left - m.right;
-  const h    = 210;
+// ── Legend ────────────────────────────────────────────────────────────────
+const legendEl = document.getElementById('legend');
+CATEGORIES.forEach(cat => {
+  const item = document.createElement('div');
+  item.className = 'legend-item';
+  item.innerHTML = `<div class="legend-swatch" style="background:${COLORS[cat]}"></div>
+                    <span>${cat}</span>`;
+  legendEl.appendChild(item);
+});
 
-  const svg = d3.select('#line-svg')
-    .attr('height', h + m.top + m.bottom)
-    .attr('viewBox', `0 0 ${W} ${h + m.top + m.bottom}`);
-  svg.selectAll('*').remove();
+// ── Draw helpers ──────────────────────────────────────────────────────────
 
-  const g = svg.append('g').attr('transform', `translate(${m.left},${m.top})`);
-  const qs = priceData.map(d => d.yq);
-  const xSc = d3.scalePoint().domain(qs).range([0, w]).padding(0.1);
-  const ySc = d3.scaleLinear().domain([50, 380]).range([h, 0]);
+function drawLeft() {
+  const container = document.getElementById('left-chart');
+  container.innerHTML = '';
 
+  const totalW = container.clientWidth || 500;
+  const margin = { top: 24, right: 16, bottom: 52, left: 54 };
+  const W = totalW - margin.left - margin.right;
+  const H = Math.round(W * 0.55);   // aspect ratio ~16:9
+
+  const svg = d3.select(container).append('svg')
+      .attr('viewBox', `0 0 ${totalW} ${H + margin.top + margin.bottom}`)
+      .attr('preserveAspectRatio', 'xMidYMid meet');
+
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const quarters = priceData.map(d => d.year_quarter);
+
+  const xScale = d3.scalePoint()
+      .domain(quarters)
+      .range([0, W])
+      .padding(0.5);
+
+  const yExtent = d3.extent(priceData, d => d.corn_price);
+  const yScale = d3.scaleLinear()
+      .domain([Math.max(0, yExtent[0] - 0.5), yExtent[1] + 0.5])
+      .range([H, 0])
+      .nice();
+
+  // Grid
   g.append('g').attr('class','grid')
-    .call(d3.axisLeft(ySc).tickSize(-w).tickFormat('').ticks(5))
-    .call(g => g.select('.domain').remove());
+   .call(d3.axisLeft(yScale).tickSize(-W).tickFormat(''));
 
-  const xTicks = qs.filter(q => q.endsWith('Q1') && parseInt(q)%2===0);
-  g.append('g').attr('class','axis').attr('transform',`translate(0,${h})`)
-    .call(d3.axisBottom(xSc).tickValues(xTicks).tickFormat(q => q.slice(0,4)))
-    .call(g => g.select('.domain').remove())
-    .selectAll('text').attr('transform','rotate(-35)').style('text-anchor','end');
+  // Axes
+  g.append('g').attr('class','axis')
+   .attr('transform', `translate(0,${H})`)
+   .call(d3.axisBottom(xScale)
+     .tickValues(X_TICKS)
+     .tickFormat(fmtLabel))
+   .selectAll('text')
+   .attr('transform','rotate(-40)')
+   .style('text-anchor','end');
 
   g.append('g').attr('class','axis')
-    .call(d3.axisLeft(ySc).ticks(5))
-    .call(g => g.select('.domain').remove());
+   .call(d3.axisLeft(yScale).ticks(6).tickFormat(d => `$${d.toFixed(1)}`));
 
-  g.append('text').attr('transform','rotate(-90)').attr('y',-34).attr('x',-h/2)
-    .attr('text-anchor','middle').attr('fill','var(--muted)').attr('font-size','9px')
-    .text('Price Index (2005 = 100)');
+  // Y label
+  g.append('text')
+   .attr('transform','rotate(-90)')
+   .attr('x', -H/2).attr('y', -42)
+   .attr('text-anchor','middle')
+   .style('font-size','11px').style('fill','#7a7060').style('font-family','Georgia,serif')
+   .text('Corn Price ($/bushel)');
 
-  g.append('line').attr('x1',0).attr('x2',w).attr('y1',ySc(100)).attr('y2',ySc(100))
-    .attr('stroke','#aaa').attr('stroke-dasharray','3 3').attr('stroke-width',0.5);
+  // Line
+  const line = d3.line()
+      .x(d => xScale(d.year_quarter))
+      .y(d => yScale(d.corn_price))
+      .curve(d3.curveMonotoneX);
 
-  // Drought shading
-  const d1 = xSc('2012_Q2'), d2 = xSc('2012_Q4');
-  if (d1 && d2) {
-    const step = xSc.step();
-    g.append('rect').attr('x', d1-step/4).attr('y',0)
-      .attr('width', d2-d1+step/2).attr('height',h)
-      .attr('fill','#8B4513').attr('opacity',0.07);
+  g.append('path')
+   .datum(priceData)
+   .attr('fill','none')
+   .attr('stroke','#C9922A')
+   .attr('stroke-width', Math.max(1.5, totalW / 280))
+   .attr('d', line);
+
+  // Selected vertical rule
+  const rule = g.append('line')
+      .attr('stroke','#2C4A2E').attr('stroke-width',1)
+      .attr('stroke-dasharray','4,4')
+      .attr('y1',0).attr('y2',H);
+
+  // Selected dot
+  const dot = g.append('circle')
+      .attr('r', Math.max(4, totalW / 100))
+      .attr('fill','#2C4A2E').attr('stroke','#F5F0E8').attr('stroke-width',1.5);
+
+  function updateIndicator(q) {
+    const d = priceData.find(r => r.year_quarter === q);
+    if (!d) return;
+    const x = xScale(q), y = yScale(d.corn_price);
+    rule.attr('x1', x).attr('x2', x);
+    dot.attr('cx', x).attr('cy', y);
   }
+  updateIndicator(selectedQ);
 
-  // Annotations
-  annotations.forEach(ann => {
-    const x = xSc(ann.yq);
-    if (!x) return;
-    g.append('line').attr('x1',x).attr('x2',x).attr('y1',0).attr('y2',h)
-      .attr('stroke','#444').attr('stroke-dasharray','4 3').attr('stroke-width',0.8);
-    g.append('text').attr('x',x-3).attr('y',h-4)
-      .attr('text-anchor','end').attr('fill','#555').attr('font-size','7.5px')
-      .attr('writing-mode','vertical-rl').attr('font-family','Georgia,serif')
-      .text(ann.label);
-  });
+  // Invisible overlay for hover
+  const bisect = d3.bisector(d => d.year_quarter).center;
 
-  // Lines
-  lineKeys.forEach(key => {
-    const valid = priceData.filter(d => d[key] != null);
-    const line = d3.line().x(d => xSc(d.yq)).y(d => ySc(d[key]));
-    g.append('path').datum(valid).attr('fill','none')
-      .attr('stroke', lineColors[key]).attr('stroke-width', lineWidths[key])
-      .attr('d', line);
-  });
-
-  // Hover elements
-  const hLine = g.append('line').attr('class','hover-line').attr('y1',0).attr('y2',h);
-  const hDot  = g.append('circle').attr('class','hover-dot').attr('r',4);
-
-  function updateSelected(q) {
-    selectedQ = q;
-    const x = xSc(q);
-    if (!x) return;
-    hLine.attr('x1',x).attr('x2',x).attr('opacity',0.9);
-    const d = priceData.find(p => p.yq === q);
-    if (d) hDot.attr('cx',x).attr('cy',ySc(d.corn)).attr('opacity',1);
-    document.getElementById('quarter-label').textContent = q.slice(0,4) + ' ' + q.slice(5);
-    drawBarChart(q);
-  }
-
-  updateSelected(selectedQ);
-
-  g.append('rect').attr('width',w).attr('height',h)
-    .attr('fill','none').attr('pointer-events','all')
-    .on('mousemove', function(event) {
-      const [mx] = d3.pointer(event, this);
-      const domain = xSc.domain();
-      const idx = Math.round((mx - xSc.range()[0]) / xSc.step());
-      updateSelected(domain[Math.max(0, Math.min(domain.length-1, idx))]);
-    });
-
-  // Legend
-  const leg = document.getElementById('line-legend');
-  leg.innerHTML = '';
-  [['corn','Corn',2],['poultry','Poultry',1],['soy','Soybeans',1],['pork','Pork',1]].forEach(([k,l,w]) => {
-    const el = document.createElement('div');
-    el.className = 'legend-item';
-    el.innerHTML = `<div class="legend-line${w>1?' thick':''}" style="background:${lineColors[k]}"></div><span>${l}</span>`;
-    leg.appendChild(el);
-  });
-  const dr = document.createElement('div');
-  dr.className = 'legend-item';
-  dr.innerHTML = `<div class="legend-box" style="background:#8B4513;opacity:0.3"></div><span>2012 Drought</span>`;
-  leg.appendChild(dr);
+  svg.append('rect')
+     .attr('fill','transparent')
+     .attr('x', margin.left).attr('y', margin.top)
+     .attr('width', W).attr('height', H)
+     .on('mousemove', function(event) {
+       const [mx] = d3.pointer(event, this);
+       // Find nearest quarter by x position
+       let best = quarters[0], bestDist = Infinity;
+       quarters.forEach(q => {
+         const dist = Math.abs(xScale(q) - mx);
+         if (dist < bestDist) { bestDist = dist; best = q; }
+       });
+       if (best !== selectedQ) {
+         selectedQ = best;
+         updateIndicator(selectedQ);
+         drawRight();
+       }
+       // Tooltip
+       const pd = priceData.find(r => r.year_quarter === selectedQ);
+       const ud = useData.find(r => r.year_quarter === selectedQ);
+       if (!pd) return;
+       const [px, py] = d3.pointer(event);
+       const total = CATEGORIES.reduce((s,c) => s + (ud?.[c] || 0), 0);
+       let html = `<strong>${selectedQ.replace('_',' ')}</strong><br>
+                   Price: <strong>$${pd.corn_price.toFixed(2)}/bu</strong>`;
+       if (ud) {
+         html += '<br>──────────────';
+         CATEGORIES.forEach(c => {
+           const pct = total > 0 ? (ud[c]/total*100).toFixed(1) : '–';
+           html += `<br><span style="color:${COLORS[c]}">■</span> ${c}: ${pct}%`;
+         });
+       }
+       tooltip.innerHTML = html;
+       tooltip.style.opacity = '1';
+       tooltip.style.left = (event.clientX + 14) + 'px';
+       tooltip.style.top  = (event.clientY - 10) + 'px';
+     })
+     .on('mouseleave', () => { tooltip.style.opacity = '0'; });
 }
 
-function drawBarChart(q) {
-  const wrap = document.querySelector('.bar-chart-wrap');
-  const W    = Math.min(wrap.clientWidth - 4, 150);
-  const m    = { top:8, right:8, bottom:4, left:40 };
-  const w    = W - m.left - m.right;
-  const h    = 200;
+function drawRight() {
+  const container = document.getElementById('right-chart');
+  container.innerHTML = '';
 
-  const svg = d3.select('#bar-svg').attr('width',W).attr('height',h+m.top+m.bottom);
-  svg.selectAll('*').remove();
+  const totalW = container.clientWidth || 140;
+  const margin = { top: 24, right: 10, bottom: 8, left: 46 };
+  const W = totalW - margin.left - margin.right;
+  // Match height of left chart by recomputing the same aspect ratio
+  const leftW = document.getElementById('left-chart').clientWidth || 500;
+  const leftH = Math.round((leftW - 16 - 54) * 0.55);
+  const H = leftH;
 
-  const g = svg.append('g').attr('transform',`translate(${m.left},${m.top})`);
-  const d = useData[q];
-  if (!d) return;
+  const svg = d3.select(container).append('svg')
+      .attr('viewBox', `0 0 ${totalW} ${H + margin.top + margin.bottom}`)
+      .attr('preserveAspectRatio', 'xMidYMid meet');
 
-  let y0 = 0;
-  const bars = categories.map(cat => {
-    const v = d[cat] || 0;
-    const b = { cat, y0, y1: y0+v };
-    y0 += v;
-    return b;
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const ud = useData.find(r => r.year_quarter === selectedQ);
+  if (!ud) return;
+
+  const total = CATEGORIES.reduce((s,c) => s + (ud[c] || 0), 0);
+  let cumY = 0;
+  const segments = CATEGORIES.map(c => {
+    const val = ud[c] || 0;
+    const frac = total > 0 ? val / total : 0;
+    const seg = { category: c, frac, y0: cumY, y1: cumY + frac };
+    cumY += frac;
+    return seg;
   });
 
-  const ySc = d3.scaleLinear().domain([0,100]).range([h,0]);
-  const xSc = d3.scaleBand().domain(['u']).range([0,w]).padding(0.15);
-
-  g.append('g').attr('class','grid')
-    .call(d3.axisLeft(ySc).tickSize(-w).tickFormat('').ticks(5))
-    .call(g => g.select('.domain').remove());
+  const yScale = d3.scaleLinear().domain([0,1]).range([H,0]);
 
   g.append('g').attr('class','axis')
-    .call(d3.axisLeft(ySc).ticks(5).tickFormat(d => d+'%'))
-    .call(g => g.select('.domain').remove());
+   .call(d3.axisLeft(yScale).ticks(5).tickFormat(d3.format('.0%')))
+   .selectAll('text').style('font-size','10px');
 
-  g.selectAll('rect').data(bars).join('rect')
-    .attr('x', xSc('u')).attr('width', xSc.bandwidth())
-    .attr('y', b => ySc(b.y1)).attr('height', b => Math.max(0, ySc(b.y0)-ySc(b.y1)))
-    .attr('fill', b => catColors[b.cat]);
+  // Y-axis title
+  g.append('text')
+   .attr('transform','rotate(-90)')
+   .attr('x', -H/2).attr('y', -38)
+   .attr('text-anchor','middle')
+   .style('font-size','10px').style('fill','#7a7060').style('font-family','Georgia,serif')
+   .text('Share of Corn Use');
 
-  // Legend
-  const leg = document.getElementById('bar-legend');
-  leg.innerHTML = '';
-  categories.forEach(cat => {
-    const el = document.createElement('div');
-    el.className = 'legend-item';
-    el.innerHTML = `<div class="legend-box" style="background:${catColors[cat]}"></div><span>${catLabels[cat]}</span>`;
-    leg.appendChild(el);
+  segments.forEach(seg => {
+    g.append('rect')
+     .attr('x', 0).attr('width', W)
+     .attr('y', yScale(seg.y1))
+     .attr('height', Math.max(0, yScale(seg.y0) - yScale(seg.y1)))
+     .attr('fill', COLORS[seg.category]);
   });
+
+  // Chart title
+  svg.append('text')
+     .attr('x', margin.left + W/2).attr('y', 14)
+     .attr('text-anchor','middle')
+     .style('font-size','11px').style('fill','#2C2C2C').style('font-family','Georgia,serif')
+     .text('Use Breakdown');
 }
 
-function init() { drawLineChart(); drawBarChart(selectedQ); }
-window.addEventListener('resize', init);
-init();
+// ── Initial draw ──────────────────────────────────────────────────────────
+drawLeft();
+drawRight();
+
+// ── Responsive redraw ─────────────────────────────────────────────────────
+let resizeTimer;
+new ResizeObserver(() => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { drawLeft(); drawRight(); }, 60);
+}).observe(document.getElementById('chart-wrapper'));
 </script>
 </body>
 </html>
