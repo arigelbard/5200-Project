@@ -48,15 +48,15 @@ ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
 
 # ── Source note ────────────────────────────────────────────────────────
-fig.text(
-    0.12, 0.01,
-    'Sources: EPA RFS2 Regulatory Impact Analysis (2010); '
-    'Searchinger et al., Science (2008)',
-    fontsize=7.5, color='#888888'
-)
+# fig.text(
+#     0.12, 0.01,
+#     'Sources: EPA RFS2 Regulatory Impact Analysis (2010); '
+#     'Searchinger et al., Science (2008)',
+#     fontsize=7.5, color='#888888'
+# )
 
 plt.tight_layout()
-plt.savefig('../outputs/carbon_emissions_bar.png', dpi=150, bbox_inches='tight')
+plt.savefig('../outputs/carbon_emissions_bar.png', dpi=300, bbox_inches='tight')
 print("Chart saved to ../outputs/carbon_emissions_bar.png")
 plt.show()
 # %%
