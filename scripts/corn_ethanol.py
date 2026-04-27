@@ -88,7 +88,7 @@ overlay = alt.Chart(df_price_filtered).mark_rect(
 ).add_params(selection)
 
 left_chart = (price_line + rule + selected_point + overlay).properties(
-    width=430,
+    width=380,
     height=320,
     title=alt.TitleParams('Corn Price Over Time', fontSize=13, font='serif')
 )
@@ -112,7 +112,7 @@ right_chart = alt.Chart(df_long_filtered).mark_bar(size=80).encode(
 ).transform_filter(
     selection
 ).properties(
-    width=200,
+    width=135,
     height=320,
     title=alt.TitleParams('Corn Use Breakdown', fontSize=13, font='serif')
 )

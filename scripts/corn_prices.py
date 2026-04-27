@@ -5,7 +5,7 @@ df_merged = pd.read_csv("../data/processed-data/food_prices.csv")
 
 # Change gridlines, background color, and font family of visual to match website
 plt.rcParams['font.family'] = 'serif'
-fig, ax = plt.subplots(figsize=(12, 6))
+fig, ax = plt.subplots(figsize=(9, 5))
 fig.patch.set_facecolor('#F5F0E8')
 ax.set_facecolor('#F5F0E8')
 ax.grid(color='#E8E0D0', linewidth=0.5)
@@ -25,7 +25,7 @@ ax.set_xticklabels(tick_labels, rotation=45)
 
 # Each foodstuff color and line thickness
 ax.plot(df_merged['year_quarter'], df_merged['poultry_idx'], 
-        label='Poultry', color="#6B8E6B", linewidth=1)
+        label='Poultry', color="#5873CB", linewidth=1)
 
 ax.plot(df_merged['year_quarter'], df_merged['soybean_idx'], 
         label='Soybeans', color="#2C4A2E", linewidth=1)
@@ -48,7 +48,7 @@ ax.text('2006_Q3', 195, 'EISA (2007)',
 
 # EPA reduction mandate annotation line
 ax.axvline(x='2013_Q3', color='Black', linestyle='--', linewidth=1)
-ax.text('2013_Q2', 105, 'EPA reduces mandate (2013)', 
+ax.text('2013_Q1', 105, 'EPA reduces mandate (2013)', 
         color='black', fontsize=10, rotation=90)
 
 # Horizontal line for line with 100 index
