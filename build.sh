@@ -58,6 +58,9 @@ cp outputs/corn_belt_2010.geojson _site/
 cp outputs/corn_belt_2011.geojson _site/
 cp outputs/corn_belt_2012.geojson _site/
 
+# Copy references
+cp references.bib _site/
+
 #################################################################
 ### Set folder permissions
 folders=$(find _site/* -type d)

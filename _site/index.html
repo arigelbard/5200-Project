@@ -477,6 +477,54 @@
       color: rgba(249,246,238,0.6);
     }
 
+    /* ── Citations & References ──────────────────────────────────────── */
+    .citation {
+      font-family: 'Source Code Pro', monospace;
+      font-size: 0.65rem;
+      vertical-align: super;
+      line-height: 0;
+      color: var(--sage);
+      text-decoration: none;
+      margin-left: 1px;
+    }
+
+    .citation:hover {
+      color: var(--gold);
+      text-decoration: underline;
+    }
+
+    #references {
+      background: var(--parchment);
+    }
+
+    .references-list {
+      list-style: decimal;
+      padding-left: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .references-list li {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      max-width: none;
+    }
+
+    .references-list li::marker {
+      color: var(--sage);
+      font-family: 'Source Code Pro', monospace;
+      font-size: 0.78rem;
+    }
+
+    .references-loading {
+      font-family: 'Source Code Pro', monospace;
+      font-size: 0.78rem;
+      color: var(--sage-light);
+      letter-spacing: 0.04em;
+    }
+
     /* ── Footer ──────────────────────────────────────────────────────── */
     footer {
       background: var(--sage-dark);
@@ -525,6 +573,7 @@
       <li><a href="#land-use">Land Use</a></li>
       <li><a href="#carbon">Carbon</a></li>
       <li><a href="#conclusion">Conclusion</a></li>
+      <li><a href="#references">References</a></li>
     </ul>
   </nav>
 
@@ -534,17 +583,17 @@
   <section id="intro">
     <div class="hero-eyebrow">A Data Story &nbsp;·&nbsp; US Energy Policy</div>
     <h1 class="hero-title">The <em>Unintended</em> Harvest</h1>
-    <p class="hero-subtitle">How America's ethanol mandate promised energy independence — and delivered something else entirely.</p>
+    <p class="hero-subtitle">How America's ethanol mandate promised energy independence - and delivered something else entirely.</p>
 
     <div class="section-divider"></div>
 
     <div class="hero-body">
       <!-- Left column: text -->
       <div class="hero-text">
-        <p>In the early 2000s, the United States was facing a wide range of global challenges that impacted our energy security. With rising oil prices due to foreign conflicts, a growing concern about climate change, and a pressure to reduce fossil fuel dependence, Congress decided to take action. In 2005, they passed the Energy Policy Act, the first federal Renewable Fuel Standard which mandated that billions of gallons of corn ethanol be blended into the American gasoline supply each year. Two years later, they passed the Energy Independence and Security Act of 2007, which dramatically expanded the ambition, setting a target of 36 billion gallons of renewable fuel annually by 2022.</p>
-        <p>These laws were passed with the goals of reducing dependence on foreign oil, and cutting greenhouse gas emissions by replacing fossil fuels with a homegrown, plant-based alternative. Corn ethanol, grown by American farmers and processed in American refineries, seemed to offer both at once. By 2013, roughly 40% of the entire US corn crop was being diverted to fuel production.</p>
+        <p>In the early 2000s, the United States was facing a wide range of global challenges that impacted our energy security. With rising oil prices due to foreign conflicts, a growing concern about climate change, and a pressure to reduce fossil fuel dependence, Congress decided to take action. In 2005, they passed the Energy Policy Act, the first federal Renewable Fuel Standard which mandated that billions of gallons of corn ethanol be blended into the American gasoline supply each year. Two years later, they passed the Energy Independence and Security Act of 2007, which dramatically expanded the ambition, setting a target of 36 billion gallons of renewable fuel annually by 2022.<a href="#ref-2" class="citation">5</a></p>
+        <p>These laws were passed with the goals of reducing dependence on foreign oil, and cutting greenhouse gas emissions by replacing fossil fuels with a homegrown, plant-based alternative. Corn ethanol, grown by American farmers and processed in American refineries, seemed to offer both at once. By 2013, roughly 40% of the entire US corn crop was being diverted to fuel production.<a href="#ref-2" class="citation">1</a></p>
         <p>What the mandate's architects did not fully anticipate was how a policy change of that scale would ripple through interconnected global systems. Corn is a foundational commodity in global food markets, animal feed supply chains, and agricultural land use decisions across multiple continents. So, when American farmers shifted millions of acres toward fuel corn, the consequences extended far beyond the fuel tank.</p>
-        <p>This project examines three of those consequences through data. Food prices spiked globally as corn supply tightened, with the burden falling disproportionately on the world's poorest populations. Across the Corn Belt, millions of acres of grassland and wetland were converted to cropland to meet the new demand. And when independent researchers ran the full lifecycle accounting for corn ethanol's greenhouse gas emissions, accounting for what happened to land use shifts as well as emissions from vehicles, they found that the climate math did not add up the way Congress had hoped.</p>
+        <p>This project examines three of those consequences through data. Food prices spiked globally as corn supply tightened, with the burden falling disproportionately on the world's poorest populations.<a href="#ref-2" class="citation">19</a> Across the Corn Belt, millions of acres of grassland and wetland were converted to cropland to meet the new demand.<a href="#ref-2" class="citation">10</a> And when independent researchers ran the full lifecycle accounting for corn ethanol's greenhouse gas emissions, accounting for what happened to land use shifts as well as emissions from vehicles, they found that the climate math did not add up the way Congress had hoped.<a href="#ref-2" class="citation">13</a></p>
 
         <div class="policy-tags">
           <span class="policy-tag">Energy Policy Act · 2005</span>
@@ -693,10 +742,9 @@
 
     <div class="side-by-side text-left">
       <div class="text-col">
-        <p><em>Finally, when Congress passed the Energy Independence and Security Act, it included a requirement that corn ethanol produce at least 20% fewer lifecycle greenhouse gas emissions than the gasoline it replaced. The EPA's modeling suggested this threshold was achievable, accounting for the energy used to grow, harvest, and refine corn into ethanol, the agency projected lifecycle emissions of around 74 gCO₂eq per megajoule of fuel, comfortably below the gasoline baseline of 92 gCO₂eq/MJ. On paper, corn ethanol was a climate solution.</em></p>
-        <p><em>The problem was what the EPA's model left out.</em></p>
-        <p><em>In 2008, a team of researchers led by Timothy Searchinger at Princeton published a paper in Science that fundamentally reframed the climate accounting for corn ethanol. Their argument was that when American farmers convert cropland to grow corn for fuel, the food that cropland used to produce has to come from somewhere else. That somewhere else, they showed, was overwhelmingly land that had previously been forest, savannah, or grassland, primarily in Brazil, China, and India. Clearing that land releases enormous quantities of carbon stored in soil and vegetation, carbon that had accumulated over decades or centuries. Once this indirect land use change was included in the lifecycle calculation, corn ethanol's emissions rose to approximately 177 gCO₂eq/MJ, nearly double the gasoline baseline, and 93% higher than the fuel it was supposed to replace. Searchinger et al. estimated it would take roughly 167 years of displacement to repay this carbon debt.</em></p>
-        <p><em>The chart to the right illustrates the gap between these two accounting frameworks. All three values are modeled estimates, rather than observed measurements, of lifecycle emissions accounting requires assumptions about global land use responses that cannot be directly measured. The EPA and Searchinger teams made different assumptions about how much land conversion would be triggered by the mandate and where that conversion would occur, which is what produces the dramatic divergence in their results. What is not in dispute is the underlying mechanism: policies that increase demand for crops grown on finite agricultural land will push food production elsewhere, and that displacement has a carbon cost that direct emissions accounting does not capture.</em></p>
+        <p><em>When Congress passed the Energy Independence and Security Act, it included an emissions standard designed to ensure the mandate delivered genuine climate benefits: corn ethanol would only count toward the federal volume requirements if its lifecycle greenhouse gas emissions were at least 20% lower than the gasoline it replaced. The EPA's own lifecycle analysis appeared to confirm this. Their model projected corn ethanol's emissions at around 74 gCO₂eq per megajoule of fuel, comfortably below the gasoline baseline of 92 gCO₂eq/MJ, and well within the 20% threshold the law required.</em></p>
+        <p><em>However, in 2008, a team of researchers led by Timothy Searchinger at Princeton published a paper in Science that fundamentally reframed the climate accounting for corn ethanol. Their argument was that when American farmers convert cropland to grow corn for fuel, the food that cropland used to produce has to come from somewhere else. That somewhere else, they showed, was overwhelmingly land that had previously been forest, savannah, or grassland, primarily in Brazil, China, and India. Clearing that land releases enormous quantities of carbon stored in soil and vegetation, carbon that had accumulated over decades or centuries. Once this indirect land use change was included in the lifecycle calculation, corn ethanol's emissions rose to approximately 177 gCO₂eq/MJ, nearly double the gasoline baseline, and 93% higher than the fuel it was supposed to replace. Searchinger et al. estimated it would take roughly 167 years of displacement to repay this carbon debt.</em></p>
+        <p><em>The chart to the right illustrates the gap between these two accounting frameworks. All three values are modeled estimates, rather than observed measurements of lifecycle emissions, accounting requires assumptions about global land use responses that cannot be directly measured. The EPA and Searchinger teams made different assumptions about how much land conversion would be triggered by the mandate and where that conversion would occur, which is what produces the dramatic divergence in their results. What is not in dispute is the idea that policies that increase demand for crops grown on finite agricultural land will push food production elsewhere, and that displacement has a carbon cost that direct emissions accounting does not capture.</em></p>
       </div>
 
       <div class="viz-col">
@@ -744,11 +792,70 @@
 
   </section>
 
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <!-- REFERENCES                                                        -->
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <section id="references" class="section">
+    <div class="section-header">
+      <div class="section-number">References</div>
+      <h2>Sources</h2>
+      <div class="section-divider"></div>
+    </div>
+    <p class="references-loading" id="references-loading">Loading references…</p>
+    <ol class="references-list" id="references-list"></ol>
+  </section>
+
   <!-- ── Footer ──────────────────────────────────────────────────────── -->
   <footer>
     <span>Data Visualization · Georgetown University · 2026</span>
     <span>Sources: USDA NASS · USDA Cropland Data Layer · EPA RFS2 RIA · Searchinger et al. (2008)</span>
   </footer>
+
+  <!-- ── Citation.js - render references from .bib file ───────────────── -->
+  <script src="https://cdn.jsdelivr.net/npm/citation-js@0.7.16/build/citation.js" type="text/javascript"></script>
+  <script>
+    const Cite = require('citation-js');
+
+    fetch('references.bib')
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.text();
+      })
+      .then(bib => {
+        const cite = new Cite(bib);
+        const html = cite.format('bibliography', {
+          format:   'html',
+          template: 'apa',
+          lang:     'en-US',
+        });
+
+        // Citation.js wraps output in a div - extract individual entries
+        const parser  = new DOMParser();
+        const doc     = parser.parseFromString(html, 'text/html');
+        const entries = doc.querySelectorAll('.csl-entry');
+        const list    = document.getElementById('references-list');
+        const loading = document.getElementById('references-loading');
+
+        if (entries.length === 0) {
+          loading.textContent = '⚠ No references found in references.bib';
+          return;
+        }
+
+        entries.forEach((entry, i) => {
+          const li     = document.createElement('li');
+          li.id        = `ref-${i + 1}`;
+          li.innerHTML = entry.innerHTML;
+          list.appendChild(li);
+        });
+
+        loading.style.display = 'none';
+      })
+      .catch(err => {
+        const loading = document.getElementById('references-loading');
+        loading.textContent = `⚠ Could not load references: ${err.message}`;
+        console.error(err);
+      });
+  </script>
 
   <!-- ── Active nav on scroll ────────────────────────────────────────── -->
   <script>
