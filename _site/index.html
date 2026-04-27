@@ -310,6 +310,14 @@
       align-self: start;
     }
 
+    .side-by-side.wide-viz-left {
+      grid-template-columns: 1.75fr 1fr;
+    }
+
+    .side-by-side.wide-viz-right {
+      grid-template-columns: 1fr 1.85fr;
+    }
+
     /* ── Map iframes ─────────────────────────────────────────────────── */
     .map-frame-wrapper {
       border: 1px solid var(--border);
@@ -628,12 +636,85 @@
       <div class="section-divider"></div>
     </div>
 
-    <!-- PLACEHOLDER: Partner's section -->
-    <div class="placeholder">
-      <div class="placeholder-label">Pavlos' Section - Food Prices</div>
-      <p class="placeholder-desc">Placeholder text</p>
+<!-- Text + linked visual for corn and ethanol -->
+    <div class="side-by-side text-right wide-viz-left">
+      <div class="text-col">
+        <p><em>Prior to the Energy Policy Act of 2005 (EPAct), the majority of American corn production went toward feed and residual uses — primarily food for livestock — a pattern that had held steady since the 1980s. The EPAct fundamentally disrupted this balance by establishing the Renewable Fuel Standard (RFS), which mandated a minimum volume of renewable fuel to be blended into the nation's gasoline supply. These requirements were set to increase year over year, reaching a minimum of 7.5 billion gallons by 2012. Since corn-based ethanol was the most readily available way to meet these targets, the mandate injected an artificial, policy-driven boom in corn demand that would reshape American agriculture over the following decade.</em></p>
+        <p><em>The effects of the EPAct on corn prices and ethanol production were swift. Ethanol refineries scaled to meet the demand for the RFS targets faster than corn supply could keep pace. While corn prices had held steady around a price of $2 per bushel from 2000-2005, this squeeze caused a dramatic increase in corn prices. By 2008 corn prices had more than doubled to $5 per bushel and by 2012 the price had jumped to $7 per bushel. In under a decade, from 2005-2012, corn prices had experienced a shocking 250% price increase. The interactive chart illustrates this dual story: hover over any quarter to see how corn's use breakdown shifted in lockstep with rising prices. The amber ethanol slice, barely visible in 2000, steadily consumed a larger share of the crop each year, compressing the portions available for feed, food, and export. By 2012, over 40% of the entire US corn crop was being diverted to fuel production — a reallocation of agricultural resources with no historical precedent. </em></p>
+
+        <!-- Key stats -->
+        <div class="stat-row">
+          <div class="stat-box">
+            <span class="stat-number">+250%</span>
+            <span class="stat-label">Corn price increase, 2005-2012</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-number">7.5B</span>
+            <span class="stat-label">Gallons of ethanol mandated annually by 2012</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-number">42%</span>
+            <span class="stat-label">Of US corn crop diverted to ethanol by 2012</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="viz-col">
+        <div class="map-frame-wrapper">
+          <iframe
+            src="corn_ethanol.html"
+            title="Change in corn price and use, 2000-2015"
+            loading="lazy"
+          ></iframe>
+          <div class="map-caption">
+            Fig. 1 &nbsp;·&nbsp; Corn Price vs. Use Breakdown, 2000–2015 &nbsp;·&nbsp; Source: USDA ERS
+          </div>
+        </div>
+      </div>
     </div>
 
+    <!-- Connector text between corn price visuals -->
+    <div class="map-connector">
+      <p><em>Why was this corn expansion so problematic? For one, corn requires heavy use of nitrogen and phosphorus fertilizers, and when rain washes these nutrients off fields, they end up in rivers and streams. This runoff can degrade local water quality, harm drinking water sources, and fuel algae blooms that deplete oxygen in the water. Research modeling the Upper Mississippi River Basin found that a 57% increase in corn acreage, comparable to what our data shows, would increase nitrogen loads to the Gulf of Mexico by nearly 19% and phosphorus loads by 12%. One major consequence is the worsening of the "dead zone" in the Gulf of Mexico, where chronically low oxygen levels make it difficult for marine life to survive.</em></p>
+      <p><em>Furthermore, the corn acreage expansion shown above did not happen on land that was already being farmed. Much of the growth, particularly in North Dakota, South Dakota, and Minnesota, came at the direct expense of natural grasslands and wetlands that had never been cultivated. These landscapes were plowed under to meet the mandate's ever-increasing volume requirements. </em></p>
+    </div>
+
+<!-- Text + commodity price chart-->
+    <div class="side-by-side text-left wide-viz-right">
+      <div class="text-col">
+        <p><em>The mandate's impact on American agriculture went beyond simply redirecting existing corn supplies toward fuel production. To meet the escalating volume requirements, farmers across the country dramatically expanded how much corn they planted in the first place. The mechanism was straightforward: the Renewable Fuel Standard created a guaranteed, government-mandated market for corn that did not depend on food demand, weather, or export prices. This meant that American farmers could sell their crops at stable prices without uncertainty. When corn prices doubled between 2005 and 2012, the rational response was to plant more corn and find more land to plant it on.</em></p>
+        <p><em>The expansion that followed was rapid and geographically concentrated. Farmers in states like North Dakota and South Dakota, where grassland and wetland had previously made corn farming marginal, found that the new economics suddenly made conversion worthwhile. These were not traditional Corn Belt states, they were frontier territories for corn production, opened up almost overnight by the mandate's price signal. Between 2006 and 2012, according to USDA National Agricultural Statistics Service data, the average Corn Belt county saw corn acreage increase by nearly 50% in just six years. The map to the right shows where those decisions were made, county by county, with the darkest greens concentrated in the northern Great Plains, where the transformation was most dramatic.</em></p>
+
+        <!-- Key stats -->
+        <div class="stat-row">
+          <div class="stat-box">
+            <span class="stat-number">+49%</span>
+            <span class="stat-label">Average county increase in corn acreage</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-number">1,573</span>
+            <span class="stat-label">Counties with measurable corn acreage increase</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-number">2006–12</span>
+            <span class="stat-label">Six years of rapid expansion</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="viz-col">
+        <div class="chart-wrapper">
+          <img
+            src="commodity_prices.png"
+            alt="Food commodity prices indexed to 2005"
+            style="width: 100%; max-height: 460px; object-fit: contain; display: block;"
+          />
+          <div class="chart-caption">
+            Fig. 2 &nbsp;·&nbsp; Food Commodity Prices Indexed to 2005, 2000–2015 &nbsp;·&nbsp; Sources: USDA ERS · FRED
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- ══════════════════════════════════════════════════════════════════ -->
