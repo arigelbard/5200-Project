@@ -229,10 +229,13 @@ function drawLeft() {
      .attr('width', W).attr('height', H)
      .on('mousemove', function(event) {
        const [mx] = d3.pointer(event, this);
+       // mx is relative to the overlay rect which starts at margin.left,
+       // so subtract margin.left to get coordinates in the same space as xScale
+       const mxInner = mx - margin.left;
        // Find nearest quarter by x position
        let best = quarters[0], bestDist = Infinity;
        quarters.forEach(q => {
-         const dist = Math.abs(xScale(q) - mx);
+         const dist = Math.abs(xScale(q) - mxInner);
          if (dist < bestDist) { bestDist = dist; best = q; }
        });
        if (best !== selectedQ) {
