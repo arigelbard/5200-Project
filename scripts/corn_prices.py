@@ -17,7 +17,7 @@ ax.set_ylabel('Price Index (2005 = 100)')
 # Fix x-axis to show only every 4th quarter (every year)
 quarters = df_merged['year_quarter'].tolist()
 tick_positions = range(0, len(quarters), 4)
-tick_labels = [quarters[i] for i in tick_positions]
+tick_labels = [quarters[i][:4] for i in tick_positions]
 
 # Rotate x-axis labels
 ax.set_xticks(tick_positions)
